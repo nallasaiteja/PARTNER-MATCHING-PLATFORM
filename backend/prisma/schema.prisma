@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------
+// ORGANIZATIONS & LOCATIONS
+// ---------------------------------------------------------
+
+enum OrgType {
+  HQ
+  BRANCH
+  FRANCHISE
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  type      OrgType
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+}
+
+// ---------------------------------------------------------
+// ROLES & USERS
+// ---------------------------------------------------------
+
+enum RoleType {
+  SUPER_ADMIN
+  ADMIN
+  HQ_SERVICE_TEAM
+  BRANCH_MANAGER
+  BRANCH_STAFF
+  BRANCH_AGENT
+  FRANCHISE_MANAGER
+  FRANCHISE_STAFF
+  FRANCHISE_AGENT
+  MEMBER
+}
+
+model User {
+  id             String    @id @default(uuid())
+  email          String?   @unique
+  mobile         String    @unique
+  passwordHash   String
+  role           RoleType
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  
+  isActive       Boolean   @default(true)
+  isBlocked      Boolean   @default(false)
+  isSuspended    Boolean   @default(false)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  memberProfile  MemberProfile?
+  auditLogs      AuditLog[]
+}
+
+// ---------------------------------------------------------
+// MEMBERS
+// ---------------------------------------------------------
+
+model MemberProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  
+  firstName   String
+  lastName    String
+  gender      String
+  dateOfBirth DateTime
+
+  // The rest of the 5-step profile fields (Address, Education, Family, Preferences)
+  // will be populated in subsequent phases. This serves as the foundation.
+  profileData Json? 
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------------------------------------------------------
+// AUDIT & LOGGING
+// ---------------------------------------------------------
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  actor     User     @relation(fields: [actorId], references: [id])
+  action    String
+  targetId  String?  // Can be another User, Profile, Invoice, etc.
+  metadata  Json?
+  
+  createdAt DateTime @default(now())
+}
