@@ -29,11 +29,12 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
+  users          User[]
+  memberProfiles MemberProfile[]
 }
 
 // ---------------------------------------------------------
-// ROLES & USERS
+// ROLES & USERS (STAFF + ADMIN)
 // ---------------------------------------------------------
 
 enum RoleType {
@@ -49,59 +50,226 @@ enum RoleType {
   MEMBER
 }
 
+enum StaffStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+  TERMINATED
+}
+
+enum StaffDivision {
+  FREE_TEAM
+  HQ_SERVICE_TEAM
+  NOT_APPLICABLE // for admins, managers, members
+}
+
 model User {
-  id             String    @id @default(uuid())
-  email          String?   @unique
-  mobile         String    @unique
+  id             String        @id @default(uuid())
+  email          String?       @unique
+  mobile         String        @unique
   passwordHash   String
   role           RoleType
+  status         StaffStatus   @default(ACTIVE)
+  staffDivision  StaffDivision @default(NOT_APPLICABLE)
+
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
-  
-  isActive       Boolean   @default(true)
-  isBlocked      Boolean   @default(false)
-  isSuspended    Boolean   @default(false)
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  // Who created this staff account (for audit trail)
+  createdById    String?
+  createdBy      User?         @relation("CreatedByRelation", fields: [createdById], references: [id])
+  createdUsers   User[]        @relation("CreatedByRelation")
+
+  // Permission overrides (e.g., FREE_TEAM granted access to paid profiles)
+  permissionOverrides Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   memberProfile  MemberProfile?
-  auditLogs      AuditLog[]
+  auditLogs      AuditLog[]        @relation("ActorLogs")
+  blockedMembers MemberProfile[]   @relation("BlockedByStaff")
+  createdProfiles MemberProfile[]  @relation("CreatedByStaff")
+  assignedProfiles MemberProfile[] @relation("AssignedProfiles")
+
+  @@index([role])
+  @@index([status])
+  @@index([organizationId])
 }
 
 // ---------------------------------------------------------
 // MEMBERS
 // ---------------------------------------------------------
 
+enum MemberPackageType {
+  FREE
+  PAID
+}
+
+enum MemberOwnershipType {
+  BRANCH
+  FRANCHISE
+  HQ
+}
+
 model MemberProfile {
   id          String   @id @default(uuid())
+  memberId    String?  @unique // Human-readable ID e.g. M2026001
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id])
-  
+
+  // --- Step 1: Personal Details ---
   firstName   String
   lastName    String
   gender      String
   dateOfBirth DateTime
 
-  // The rest of the 5-step profile fields (Address, Education, Family, Preferences)
-  // will be populated in subsequent phases. This serves as the foundation.
-  profileData Json? 
+  // Step 1 - Photo & Identity
+  photoUrl        String?   // URL to stored profile photo
+  photoFilename   String?   // filename on disk/storage
+  idProofType     String?   // e.g. 'Aadhar Card', 'Passport'
+  idProofNumber   String?   // actual ID proof number (for search)
+  idProofFileUrl  String?   // URL to uploaded ID proof document
+  timeOfBirth     String?   // Optional HH:MM (24h)
+  birthPlace      String?   // Optional text
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Package & Ownership
+  packageType    MemberPackageType   @default(FREE)
+  ownershipType  MemberOwnershipType @default(BRANCH)
+  ownerOrgId     String?             // The branch/franchise/HQ org that owns this profile
+  ownerOrg       Organization?       @relation(fields: [ownerOrgId], references: [id])
+
+  // Who originally created this profile (agent/staff)
+  createdByStaffId String?
+  createdByStaff   User?   @relation("CreatedByStaff", fields: [createdByStaffId], references: [id])
+
+  // Staff assigned to this profile
+  assignedToId     String?
+  assignedTo       User?   @relation("AssignedProfiles", fields: [assignedToId], references: [id])
+
+  // The original branch/franchise org (retained for commission record after HQ transfer)
+  originatingOrgId String?
+
+  // Block tracking
+  isBlocked    Boolean   @default(false)
+  blockedById  String?
+  blockedBy    User?     @relation("BlockedByStaff", fields: [blockedById], references: [id])
+  blockedAt    DateTime?
+  blockedReason String?
+
+  // Form progress tracking
+  currentStep    Int   @default(1)  // Which step the user is currently on
+  completedSteps Json? // e.g. [1, 2, 3] — array of completed step numbers
+
+  // Catch-all for additional data not yet given their own columns
+  profileData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salesCommissionRecords SalesCommissionRecord[]
+  supportTickets         SupportTicket[]
+
+  @@index([ownerOrgId])
+  @@index([ownershipType])
+  @@index([createdByStaffId])
+  @@index([packageType])
+  @@index([isBlocked])
+  @@index([memberId])
+}
+
+// ---------------------------------------------------------
+// SALES & COMMISSION RECORD (read-only for originating agent)
+// ---------------------------------------------------------
+
+model SalesCommissionRecord {
+  id              String   @id @default(uuid())
+  memberProfileId String
+  memberProfile   MemberProfile @relation(fields: [memberProfileId], references: [id])
+  agentId         String
+  originatingOrgId String?
+  commissionNotes String?
+  createdAt       DateTime @default(now())
+
+  @@index([agentId])
+  @@index([memberProfileId])
+}
+
+// ---------------------------------------------------------
+// SUPPORT TICKETS (HQ Service Team)
+// ---------------------------------------------------------
+
+enum TicketStatus {
+  OPEN
+  PENDING_OTP
+  OTP_VERIFIED
+  CLOSED
+}
+
+model SupportTicket {
+  id              String       @id @default(uuid())
+  memberProfileId String
+  memberProfile   MemberProfile @relation(fields: [memberProfileId], references: [id])
+
+  subject         String
+  description     String?
+  status          TicketStatus @default(OPEN)
+
+  // OTP for closure verification
+  closureOtp      String?
+  closureOtpSentAt DateTime?
+  closureOtpVerifiedAt DateTime?
+
+  assignedToId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([memberProfileId])
 }
 
 // ---------------------------------------------------------
 // AUDIT & LOGGING
 // ---------------------------------------------------------
 
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  PROFILE_VIEW
+  PROFILE_CREATE
+  PROFILE_EDIT
+  PROFILE_BLOCK
+  PROFILE_UNBLOCK
+  MEMBER_EXPORT
+  STAFF_CREATE
+  STAFF_EDIT
+  STAFF_BLOCK
+  STAFF_TERMINATE
+  INVOICE_RAISE
+  INVOICE_APPROVE
+  TICKET_OPEN
+  TICKET_CLOSE
+  OTP_SENT
+  OTP_VERIFIED
+  PERMISSION_OVERRIDE
+}
+
 model AuditLog {
-  id        String   @id @default(uuid())
-  actorId   String
-  actor     User     @relation(fields: [actorId], references: [id])
-  action    String
-  targetId  String?  // Can be another User, Profile, Invoice, etc.
-  metadata  Json?
-  
+  id           String      @id @default(uuid())
+  actorId      String
+  actor        User        @relation("ActorLogs", fields: [actorId], references: [id])
+  actorRole    RoleType
+  action       AuditAction
+  resourceType String?     // e.g. "MemberProfile", "User", "SupportTicket"
+  resourceId   String?
+  orgId        String?
+  metadata     Json?
+  ipAddress    String?
+
   createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
 }

@@ -22,8 +22,25 @@ const LandingPage: React.FC = () => {
             Telangana, and worldwide. Inclusive of all castes and backgrounds.
           </p>
           <div className="hero-buttons">
-            <Link to="/member/dashboard" className="btn-primary">Register Free</Link>
-            <Link to="/admin/dashboard" className="btn-secondary">Staff / Admin Login</Link>
+            <button onClick={() => {
+              localStorage.setItem('user', JSON.stringify({ id: 'user-super-admin', role: 'SUPER_ADMIN', status: 'ACTIVE', organizationId: 'org-hq' }));
+              window.location.href = '/admin/dashboard';
+            }} className="btn-secondary">Login as Super Admin</button>
+
+            <button onClick={() => {
+              localStorage.setItem('user', JSON.stringify({ id: 'user-branch-a-manager', role: 'BRANCH_MANAGER', status: 'ACTIVE', organizationId: 'org-branch-a' }));
+              window.location.href = '/branch/dashboard';
+            }} className="btn-secondary">Login as Branch Manager</button>
+            
+            <button onClick={() => {
+              localStorage.setItem('user', JSON.stringify({ id: 'user-suspended', role: 'BRANCH_STAFF', status: 'SUSPENDED', organizationId: 'org-branch-a' }));
+              window.location.href = '/branch/dashboard';
+            }} className="btn-secondary">Login as Suspended Staff</button>
+
+            <button onClick={() => {
+              localStorage.setItem('user', JSON.stringify({ id: 'user-blocked', role: 'BRANCH_STAFF', status: 'BLOCKED', organizationId: 'org-branch-a' }));
+              window.location.href = '/branch/dashboard'; // Should get blocked by ProtectedRoute
+            }} className="btn-secondary">Login as Blocked Staff</button>
           </div>
         </section>
 
