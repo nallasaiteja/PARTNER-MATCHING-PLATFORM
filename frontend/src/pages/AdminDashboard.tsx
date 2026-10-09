@@ -1,6 +1,6 @@
 import React from 'react';
 import { RoleGuard } from '../components/RoleGuard';
-import { Permission, Role } from '../constants/roles';
+import { Permission } from '../constants/roles';
 
 export const AdminDashboard: React.FC = () => {
   return (

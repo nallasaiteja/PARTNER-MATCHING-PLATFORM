@@ -16,7 +16,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role }) => {
         <nav className="sidebar-nav">
           <ul>
             <li><Link to="dashboard">Dashboard</Link></li>
-            <li><Link to="#">Profiles</Link></li>
+            <li><Link to={role === 'Member' ? 'profile' : 'profiles/new'}>Member Data Entry (5-Step)</Link></li>
             <li><Link to="#">Settings</Link></li>
             <li><Link to="/">Logout (Home)</Link></li>
           </ul>

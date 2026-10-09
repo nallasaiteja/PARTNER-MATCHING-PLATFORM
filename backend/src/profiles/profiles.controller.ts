@@ -43,6 +43,16 @@ export class ProfilesController {
   }
 
   /**
+   * GET /api/v1/profiles/me
+   * Get member profile of currently authenticated user
+   */
+  @Get('me')
+  @RequirePermission(Permission.PROFILE_VIEW)
+  getMyProfile(@CurrentUser() user: any) {
+    return this.profilesService.getMyProfile(user);
+  }
+
+  /**
    * GET /api/v1/profiles/:id
    * Get a single profile
    */

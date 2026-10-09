@@ -4,6 +4,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import { AuthProvider } from './auth/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AdminDashboard } from './pages/AdminDashboard';
+import MemberProfileFormPage from './pages/MemberProfileFormPage';
 import { Role } from './constants/roles';
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/profile-form/:profileId?" element={<MemberProfileFormPage />} />
         
         {/* Member Routes Shell */}
         <Route path="/member" element={
@@ -20,6 +22,8 @@ function App() {
           </ProtectedRoute>
         }>
           <Route path="dashboard" element={<div>Member Dashboard Content</div>} />
+          <Route path="profile" element={<MemberProfileFormPage />} />
+          <Route path="profile/:profileId" element={<MemberProfileFormPage />} />
           <Route path="matches" element={<div>Matches (Coming Soon)</div>} />
         </Route>
 
@@ -30,6 +34,8 @@ function App() {
           </ProtectedRoute>
         }>
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="profiles/new" element={<MemberProfileFormPage />} />
+          <Route path="profiles/:profileId" element={<MemberProfileFormPage />} />
           <Route path="staff" element={<div>Staff Management</div>} />
         </Route>
 
@@ -40,6 +46,8 @@ function App() {
           </ProtectedRoute>
         }>
           <Route path="dashboard" element={<div>Branch Dashboard Content</div>} />
+          <Route path="profiles/new" element={<MemberProfileFormPage />} />
+          <Route path="profiles/:profileId" element={<MemberProfileFormPage />} />
         </Route>
 
         {/* Franchise Shells */}

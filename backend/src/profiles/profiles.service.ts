@@ -94,6 +94,15 @@ export class ProfilesService {
 
     if (!profile) throw new NotFoundException('Profile not found');
 
+    if (actorRole === Role.MEMBER) {
+      if (profile.userId !== actor.id) {
+        throw new ForbiddenException(
+          'Access denied: members can only view their own profile',
+        );
+      }
+      return profile;
+    }
+
     // HQ-owned profiles: only HQ roles can access (or free team with direct ID)
     if (profile.ownershipType === 'HQ') {
       if (
@@ -146,6 +155,25 @@ export class ProfilesService {
   }
 
   /**
+   * Get current authenticated user's member profile.
+   */
+  async getMyProfile(actor: any) {
+    const profile = await this.prisma.memberProfile.findUnique({
+      where: { userId: actor.id },
+      include: {
+        user: { select: { id: true, mobile: true, email: true, role: true } },
+        ownerOrg: { select: { id: true, name: true, type: true } },
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Member profile not found for current user');
+    }
+
+    return profile;
+  }
+
+  /**
    * Create a new member profile.
    */
   async createProfile(
@@ -190,6 +218,12 @@ export class ProfilesService {
         lastName: dto.lastName,
         gender: dto.gender,
         dateOfBirth: new Date(dto.dateOfBirth),
+        currentStep: dto.currentStep || 1,
+        completedSteps: dto.completedSteps ? (dto.completedSteps as any) : [1],
+        idProofType: dto.idProofType,
+        idProofNumber: dto.idProofNumber,
+        timeOfBirth: dto.timeOfBirth,
+        birthPlace: dto.birthPlace,
         profileData: dto.profileData as any,
         ownershipType: ownershipType as any,
         ownerOrgId: actor.organizationId,
@@ -231,15 +265,35 @@ export class ProfilesService {
       actor.role,
       actor.organizationId,
       profileId,
+      actor.id,
     );
+
+    const existing = await this.prisma.memberProfile.findUnique({
+      where: { id: profileId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Profile not found');
+    }
+
+    const mergedProfileData = dto.profileData
+      ? { ...((existing.profileData as Record<string, any>) || {}), ...dto.profileData }
+      : existing.profileData;
 
     const updated = await this.prisma.memberProfile.update({
       where: { id: profileId },
       data: {
         firstName: dto.firstName,
         lastName: dto.lastName,
+        gender: dto.gender,
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
-        profileData: dto.profileData as any,
+        currentStep: dto.currentStep,
+        completedSteps: dto.completedSteps ? (dto.completedSteps as any) : undefined,
+        idProofType: dto.idProofType,
+        idProofNumber: dto.idProofNumber,
+        timeOfBirth: dto.timeOfBirth,
+        birthPlace: dto.birthPlace,
+        profileData: mergedProfileData as any,
       },
     });
 

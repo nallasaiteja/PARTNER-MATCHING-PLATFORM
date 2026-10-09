@@ -137,7 +137,10 @@ export const ROLE_PERMISSIONS: Record<RoleType, PermissionType[]> = {
     Permission.INVOICE_RAISE,
   ],
 
-  [Role.MEMBER]: [],
+  [Role.MEMBER]: [
+    Permission.PROFILE_VIEW,
+    Permission.PROFILE_EDIT,
+  ],
 };
 
 /**

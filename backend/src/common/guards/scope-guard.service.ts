@@ -21,6 +21,7 @@ export class ScopeGuardService {
     actorRole: RoleType,
     actorOrgId: string | null,
     profileOwnerId: string,
+    actorId?: string,
   ): Promise<void> {
     // HQ roles have global access
     if (
@@ -41,6 +42,14 @@ export class ScopeGuardService {
 
     if (!profile) {
       throw new ForbiddenException('Profile not found');
+    }
+
+    // Members can only access their own profile
+    if (actorRole === Role.MEMBER) {
+      if (profile.userId !== actorId) {
+        throw new ForbiddenException('Access denied: members can only access their own profile');
+      }
+      return;
     }
 
     // HQ-owned profiles: only HQ roles can access
@@ -95,6 +104,16 @@ export class ScopeGuardService {
 
     if (!profile) {
       throw new ForbiddenException('Profile not found');
+    }
+
+    // Members can only edit their own profile
+    if (actorRole === Role.MEMBER) {
+      if (profile.userId !== actorId) {
+        throw new ForbiddenException(
+          'Access denied: members can only edit their own profile',
+        );
+      }
+      return;
     }
 
     // Agents: must be the creator

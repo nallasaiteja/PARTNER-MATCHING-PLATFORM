@@ -38,6 +38,32 @@ export class CreateProfileDto {
   dateOfBirth: string;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  currentStep?: number;
+
+  @IsOptional()
+  @IsArray()
+  completedSteps?: number[];
+
+  @IsOptional()
+  @IsString()
+  idProofType?: string;
+
+  @IsOptional()
+  @IsString()
+  idProofNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  timeOfBirth?: string;
+
+  @IsOptional()
+  @IsString()
+  birthPlace?: string;
+
+  @IsOptional()
   profileData?: Record<string, any>;
 }
 
@@ -142,9 +168,39 @@ export class UpdateProfileDto {
   @IsOptional()
   lastName?: string;
 
+  @IsIn(['Male', 'Female'], { message: 'Gender must be Male or Female' })
+  @IsOptional()
+  gender?: string;
+
   @IsDateString()
   @IsOptional()
   dateOfBirth?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  currentStep?: number;
+
+  @IsOptional()
+  @IsArray()
+  completedSteps?: number[];
+
+  @IsOptional()
+  @IsString()
+  idProofType?: string;
+
+  @IsOptional()
+  @IsString()
+  idProofNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  timeOfBirth?: string;
+
+  @IsOptional()
+  @IsString()
+  birthPlace?: string;
 
   @IsOptional()
   profileData?: Record<string, any>;

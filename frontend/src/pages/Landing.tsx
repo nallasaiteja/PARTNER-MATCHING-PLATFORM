@@ -23,6 +23,19 @@ const LandingPage: React.FC = () => {
           </p>
           <div className="hero-buttons">
             <button onClick={() => {
+              localStorage.setItem('user', JSON.stringify({ id: 'user-member-free', role: 'MEMBER', status: 'ACTIVE', organizationId: 'org-branch-a' }));
+              window.location.href = '/member/profile';
+            }} className="btn-primary" style={{ background: '#e91e63', color: '#fff', fontWeight: 'bold' }}>
+              Member Data Entry (5-Step Form)
+            </button>
+
+            <button onClick={() => {
+              window.location.href = '/profile-form';
+            }} className="btn-secondary" style={{ border: '2px solid #e91e63', color: '#e91e63' }}>
+              Direct Form Architecture Preview
+            </button>
+
+            <button onClick={() => {
               localStorage.setItem('user', JSON.stringify({ id: 'user-super-admin', role: 'SUPER_ADMIN', status: 'ACTIVE', organizationId: 'org-hq' }));
               window.location.href = '/admin/dashboard';
             }} className="btn-secondary">Login as Super Admin</button>
