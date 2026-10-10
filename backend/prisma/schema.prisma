@@ -21,6 +21,54 @@ enum OrgType {
   FRANCHISE
 }
 
+enum LocationLevel {
+  COUNTRY
+  STATE
+  DISTRICT
+  MANDAL
+  VILLAGE
+}
+
+enum CommunityMasterLevel {
+  RELIGION
+  CASTE
+  SUB_CASTE
+  STAR
+  MOON_SIGN
+  PADAM
+  GOTHRAM
+}
+
+model CommunityMaster {
+  id        String              @id @default(uuid())
+  name      String
+  level     CommunityMasterLevel
+  parentId  String?
+  parent    CommunityMaster?    @relation("CommunityHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  CommunityMaster[]   @relation("CommunityHierarchy")
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([parentId, level, name])
+  @@index([parentId, level, isActive])
+}
+
+model LocationMaster {
+  id        String        @id @default(uuid())
+  name      String
+  level     LocationLevel
+  parentId  String?
+  parent    LocationMaster?  @relation("LocationHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  LocationMaster[] @relation("LocationHierarchy")
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([parentId, level, name])
+  @@index([parentId, level, isActive])
+}
+
 model Organization {
   id        String   @id @default(uuid())
   name      String
@@ -31,6 +79,13 @@ model Organization {
 
   users          User[]
   memberProfiles MemberProfile[]
+}
+
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
 }
 
 // ---------------------------------------------------------
@@ -71,6 +126,20 @@ model User {
   role           RoleType
   status         StaffStatus   @default(ACTIVE)
   staffDivision  StaffDivision @default(NOT_APPLICABLE)
+
+  mobileVerified             Boolean   @default(false)
+  emailVerified              Boolean   @default(false)
+  mobileOtpHash              String?
+  mobileOtpExpiresAt          DateTime?
+  mobileOtpSentAt             DateTime?
+  mobileOtpFailedAttempts     Int       @default(0)
+  emailOtpHash               String?
+  emailOtpExpiresAt           DateTime?
+  emailOtpSentAt              DateTime?
+  emailOtpFailedAttempts      Int       @default(0)
+  passwordResetTokenHash      String?
+  passwordResetExpiresAt      DateTime?
+  passwordResetRequestedAt    DateTime?
 
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])

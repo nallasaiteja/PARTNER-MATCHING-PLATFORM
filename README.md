@@ -46,6 +46,18 @@ The Partner Matching Platform is a full-stack matchmaking service connecting reg
 ## Environment Variables
 Check the `.env.example` file in the `backend` directory and set up your PostgreSQL database connection.
 
+### Step 5 Delivery Configuration
+The auth APIs use provider webhooks and fail with `503` when the relevant webhook is not configured:
+
+- `SMS_PROVIDER_WEBHOOK_URL` for mobile OTP delivery.
+- `EMAIL_PROVIDER_WEBHOOK_URL` for email OTP and password-reset delivery.
+- `NOTIFICATION_PROVIDER_WEBHOOK_TOKEN` as an optional bearer token for both delivery webhooks.
+- `FRONTEND_BASE_URL` for constructing password-reset links.
+
+The webhook receives JSON containing `channel`, `recipient`, and `type`. OTP events also include `code` and `expiresInMinutes`; password-reset events include `resetUrl` and `expiresInMinutes`. The webhook adapter must deliver the message through the configured SMS/email provider. No delivery provider is currently configured in this repository.
+
+The Prisma schema adds auth challenge fields and the Admin-managed contact-reveal eligibility setting. Apply the schema to the database with `cd backend; npm run db:push` before using these fields. The profile-payment-date notification still needs a durable scheduler and Admin/Super Admin notification delivery; no date-triggered notification is active yet.
+
 ## Development Commands
 - `npm run dev` in frontend for Vite dev server.
 - `npm run start:dev` in backend for NestJS dev server.

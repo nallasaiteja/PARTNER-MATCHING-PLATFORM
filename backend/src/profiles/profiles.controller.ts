@@ -16,6 +16,8 @@ import {
   CreateProfileDto,
   UpdateProfileDto,
   BlockProfileDto,
+  VerifyIdProofDto,
+  ContactRevealPackagesDto,
 } from './dto/profile.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -50,6 +52,20 @@ export class ProfilesController {
   @RequirePermission(Permission.PROFILE_VIEW)
   getMyProfile(@CurrentUser() user: any) {
     return this.profilesService.getMyProfile(user);
+  }
+
+  @Get('settings/contact-reveal')
+  getContactRevealPackages() {
+    return this.profilesService.getContactRevealPackages();
+  }
+
+  @Patch('settings/contact-reveal')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  setContactRevealPackages(
+    @CurrentUser() user: any,
+    @Body() dto: ContactRevealPackagesDto,
+  ) {
+    return this.profilesService.setContactRevealPackages(user, dto.packageTypes);
   }
 
   /**
@@ -89,6 +105,18 @@ export class ProfilesController {
     @Req() req: any,
   ) {
     return this.profilesService.updateProfile(user, id, dto, req.ip);
+  }
+
+  @Patch(':id/id-proof/verification')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.BRANCH_MANAGER)
+  @RequirePermission(Permission.PROFILE_EDIT)
+  verifyIdProof(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: VerifyIdProofDto,
+    @Req() req: any,
+  ) {
+    return this.profilesService.verifyIdProof(user, id, dto.verified, req.ip);
   }
 
   /**

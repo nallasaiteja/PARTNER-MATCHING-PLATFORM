@@ -5,6 +5,8 @@ import { AuthProvider } from './auth/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AdminDashboard } from './pages/AdminDashboard';
 import MemberProfileFormPage from './pages/MemberProfileFormPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import { Role } from './constants/roles';
 
 function App() {
@@ -13,6 +15,8 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/profile-form/:profileId?" element={<MemberProfileFormPage />} />
         
         {/* Member Routes Shell */}

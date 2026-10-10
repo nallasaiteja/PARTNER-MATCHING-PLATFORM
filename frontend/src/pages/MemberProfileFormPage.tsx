@@ -142,6 +142,9 @@ export const MemberProfileFormPage: React.FC = () => {
             data={formData.step1}
             onChange={(field, val) => updateField(1, field, val)}
             errors={errors}
+            immutableFields={formData.id
+              ? ['firstName', 'lastName', 'mobile', 'email', 'dateOfBirth', 'religion', 'caste']
+              : []}
           />
         )}
 
@@ -174,6 +177,15 @@ export const MemberProfileFormPage: React.FC = () => {
             data={formData.step5}
             onChange={(field, val) => updateField(5, field, val)}
             errors={errors}
+            profileId={formData.id}
+            profileUserId={formData.userId}
+            registeredEmail={formData.step1.email}
+            idProofUrl={formData.step1.idProofFileUrl}
+            packageType={formData.packageType}
+            onIdProofUploaded={(url) => {
+              updateField(1, 'idProofFileUrl', url);
+              updateField(5, 'idProofUploaded', true);
+            }}
           />
         )}
       </div>

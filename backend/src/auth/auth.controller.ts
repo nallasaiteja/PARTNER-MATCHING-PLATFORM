@@ -7,11 +7,18 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import {
+  ChangePasswordDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  VerifyOtpDto,
+} from './dto/step5-auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -46,5 +53,46 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async refresh(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshToken(refreshToken);
+  }
+
+  @Post('verification/mobile/request')
+  @UseGuards(JwtAuthGuard)
+  requestMobileVerification(@CurrentUser() user: any) {
+    return this.authService.requestMobileVerification(user.id);
+  }
+
+  @Post('verification/mobile/verify')
+  @UseGuards(JwtAuthGuard)
+  verifyMobile(@CurrentUser() user: any, @Body() dto: VerifyOtpDto) {
+    return this.authService.verifyMobile(user.id, dto.code);
+  }
+
+  @Post('verification/email/request')
+  @UseGuards(JwtAuthGuard)
+  requestEmailVerification(@CurrentUser() user: any) {
+    return this.authService.requestEmailVerification(user.id);
+  }
+
+  @Post('verification/email/verify')
+  @UseGuards(JwtAuthGuard)
+  verifyEmail(@CurrentUser() user: any, @Body() dto: VerifyOtpDto) {
+    return this.authService.verifyEmail(user.id, dto.code);
+  }
+
+  @Patch('password')
+  @UseGuards(JwtAuthGuard)
+  changePassword(@CurrentUser() user: any, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword);
+  }
+
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.ACCEPTED)
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.requestPasswordReset(dto.email);
+  }
+
+  @Post('password/reset')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.token, dto.newPassword);
   }
 }

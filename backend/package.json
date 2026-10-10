@@ -12,6 +12,9 @@
     "db:push": "npx prisma db push",
     "db:seed": "ts-node prisma/seed.ts",
     "db:studio": "npx prisma studio",
+    "test:community-master": "ts-node src/tests/community-master.test.ts",
+    "test:locations": "ts-node src/tests/location-address.test.ts",
+    "test:lifestyle": "ts-node src/tests/lifestyle-profile.test.ts",
     "test:rbac": "ts-node src/tests/rbac.test.ts"
   },
   "dependencies": {

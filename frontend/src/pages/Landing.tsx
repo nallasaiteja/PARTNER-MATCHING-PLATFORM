@@ -10,6 +10,7 @@ const LandingPage: React.FC = () => {
         <nav className="nav-links">
           <Link to="/">Home</Link>
           <Link to="#about">About</Link>
+          <Link to="/forgot-password">Forgot password</Link>
           <Link to="/member/dashboard" className="login-btn">Login / Register</Link>
         </nav>
       </header>

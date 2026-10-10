@@ -41,11 +41,7 @@ export const ProfileStepper: React.FC<ProfileStepperProps> = ({
         {STEP_DEFINITIONS.map((def) => {
           const isCompleted = completedSteps.includes(def.number);
           const isActive = currentStep === def.number;
-          // Step is clickable if it is already completed, currently active, or the immediately next available step
-          const isClickable =
-            isCompleted ||
-            isActive ||
-            def.number <= Math.max(...completedSteps, 1) + 1;
+          const isClickable = true;
 
           let statusClass = 'pending';
           if (isCompleted) statusClass = 'completed';
@@ -55,16 +51,8 @@ export const ProfileStepper: React.FC<ProfileStepperProps> = ({
             <div
               key={def.number}
               className={`step-card ${statusClass} ${isClickable ? 'clickable' : 'locked'}`}
-              onClick={() => {
-                if (isClickable) {
-                  onStepClick(def.number);
-                }
-              }}
-              title={
-                isClickable
-                  ? `Jump to Step ${def.number}: ${def.title}`
-                  : `Complete preceding steps to unlock Step ${def.number}`
-              }
+              onClick={() => onStepClick(def.number)}
+              title={`Jump to Step ${def.number}: ${def.title}`}
               role="button"
               tabIndex={isClickable ? 0 : -1}
               aria-current={isActive ? 'step' : undefined}

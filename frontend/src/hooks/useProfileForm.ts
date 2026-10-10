@@ -33,37 +33,131 @@ const DEFAULT_STEP_1: Step1Data = {
   birthPlace: '',
   idProofType: 'Aadhar Card',
   idProofNumber: '',
-  country: 'India',
-  state: 'Andhra Pradesh',
-  religion: 'Hindu',
+  country: '',
+  state: '',
+  religion: '',
   caste: '',
   maritalStatus: 'Unmarried',
+  height: '',
+  bloodGroup: '',
+  motherTongue: '',
+  healthCondition: '',
+  complexion: '',
+  smoke: false,
+  drink: false,
+  foodPreference: '',
   aboutMe: '',
+  hobbies: '',
+  spokenLanguages: [],
+
+  // Marital History
+  dateOfMarriage: '',
+  dateOfDivorce: '',
+  divorceReason: '',
+  divorceCertificateUrl: '',
+  dateOfSpouseDeath: '',
+  deathCertificateUrl: '',
+  havingChildren: false,
+  sons: [],
+  daughters: [],
+
+  // Current Living Address
+  currentCountry: '',
+  currentState: '',
+  currentDistrict: '',
+  currentCity: '',
+  currentVillage: '',
+  currentAddress: '',
+
+  // Contact & Application Meta
+  alternateMobile: '',
+  alternateEmail: '',
+  bestTimeToCall: 'Anytime',
+  applicationFor: 'Myself',
+  fillerName: '',
+  fillerMobile: '',
+  fillerRelation: '',
+  source: '',
+  nearestBranch: '',
 };
 
 const DEFAULT_STEP_2: Step2Data = {
   education: '',
+  university: '',
   employedIn: '',
+  currentEducationPursuing: '',
+  universityStudying: '',
+  universityAddress: '',
+  yearOfPursuing: '',
   profession: '',
   designation: '',
   workingLocation: 'India',
-  annualIncome: '',
+  workingState: '',
+  workingCity: '',
+  workingLocationAddress: '',
   companyName: '',
+  workingSince: '',
+  totalExperience: '',
+  passportNumber: '',
+  workCountry: '',
+  workState: '',
+  visaType: '',
+  abroadPassportNumber: '',
+  passportValidFrom: '',
+  passportValidTill: '',
+  abroadCompanyName: '',
+  abroadCompanyAddress: '',
+  annualIncome: '',
   propertyDetails: '',
+  colleagueName: '',
+  colleagueMobile: '',
 };
 
 const DEFAULT_STEP_3: Step3Data = {
   fatherName: '',
+  fatherReligion: '',
+  fatherCaste: '',
+  fatherCasteConverted: false,
   fatherStatus: 'Alive',
+  fatherHealthCondition: '',
+  fatherMobile: '',
+  fatherEmployment: '',
   fatherProfession: '',
+  fatherAnnualIncome: '',
+  fatherDesignation: '',
+  fatherAddress: '',
+  fatherProperty: '',
+  fatherPension: '',
+
   motherName: '',
+  motherMaidenName: '',
+  motherReligion: '',
+  motherCaste: '',
+  motherCasteConverted: false,
   motherStatus: 'Alive',
+  motherHealthCondition: '',
+  motherWorkingSector: '',
+  motherMobile: '',
+  motherEmployment: '',
   motherProfession: '',
+  motherAnnualIncome: '',
+  motherDesignation: '',
+  motherAddress: '',
+  motherProperty: '',
+  motherPension: '',
+
+  familyPermanentAddress: '',
+  familyPresentAddress: '',
   numberOfBrothers: 0,
+  brothers: [],
   numberOfSisters: 0,
+  sisters: [],
+  referenceName: '',
+  referenceMobile: '',
+  referenceRelation: '',
+  referenceAddress: '',
   familyType: 'Nuclear Family',
   familyStatus: 'Middle Class',
-  familyAddress: '',
 };
 
 const DEFAULT_STEP_4: Step4Data = {
@@ -74,9 +168,12 @@ const DEFAULT_STEP_4: Step4Data = {
   heightRangeMax: "6'0\"",
   interCasteAllowed: false,
   preferredCastes: [],
+  preferredFamilyStatus: [],
+  preferredCountriesAbroad: [],
+  preferredProfession: [],
+  preferredCitiesOfWork: [],
   preferredEducation: [],
-  preferredWorkingLocation: 'Any',
-  complexionPreference: [],
+  preferredComplexion: [],
 };
 
 const DEFAULT_STEP_5: Step5Data = {
@@ -123,7 +220,17 @@ export function useProfileForm(profileId?: string) {
       let parsedLocal: MemberProfileFormData | null = null;
       if (localDraft) {
         try {
-          parsedLocal = JSON.parse(localDraft);
+          const localData = JSON.parse(localDraft);
+          const legacyPaymentInterestDate = localData?.step4?.paymentInterestDate
+            ?? localData?.step5?.paymentInterestDate;
+          parsedLocal = {
+            ...localData,
+            step4: {
+              ...DEFAULT_STEP_4,
+              ...(localData?.step4 || {}),
+              ...(legacyPaymentInterestDate ? { paymentInterestDate: legacyPaymentInterestDate } : {}),
+            },
+          };
         } catch (e) {
           console.warn('Failed to parse local draft:', e);
         }
@@ -140,6 +247,7 @@ export function useProfileForm(profileId?: string) {
               id: remote.id,
               memberId: remote.memberId || undefined,
               userId: remote.userId,
+              packageType: remote.packageType || parsedLocal?.packageType || 'FREE',
               currentStep: (remote.currentStep as StepNumber) || parsedLocal?.currentStep || 1,
               completedSteps: (remote.completedSteps as StepNumber[]) || parsedLocal?.completedSteps || [],
               step1: {
@@ -173,11 +281,18 @@ export function useProfileForm(profileId?: string) {
                 ...DEFAULT_STEP_4,
                 ...(remoteStepData.step4 || {}),
                 ...(parsedLocal?.step4 || {}),
+                paymentInterestDate: parsedLocal?.step4?.paymentInterestDate
+                  ?? parsedLocal?.step5?.paymentInterestDate
+                  ?? remoteStepData.step4?.paymentInterestDate
+                  ?? remoteStepData.step5?.paymentInterestDate,
               },
               step5: {
                 ...DEFAULT_STEP_5,
                 ...(remoteStepData.step5 || {}),
                 ...(parsedLocal?.step5 || {}),
+                mobileVerified: remote.user?.mobileVerified ?? remoteStepData.step5?.mobileVerified ?? false,
+                emailVerified: remote.user?.emailVerified ?? remoteStepData.step5?.emailVerified ?? false,
+                idProofUploaded: Boolean(remote.idProofFileUrl),
               },
             };
 
@@ -279,6 +394,8 @@ export function useProfileForm(profileId?: string) {
             firstName: dataToSave.step1.firstName || undefined,
             lastName: dataToSave.step1.lastName || undefined,
             gender: dataToSave.step1.gender || undefined,
+            mobile: dataToSave.step1.mobile || undefined,
+            email: dataToSave.step1.email || undefined,
             dateOfBirth: dataToSave.step1.dateOfBirth || undefined,
             currentStep: dataToSave.currentStep,
             completedSteps: dataToSave.completedSteps,
@@ -286,6 +403,8 @@ export function useProfileForm(profileId?: string) {
             idProofNumber: dataToSave.step1.idProofNumber,
             timeOfBirth: dataToSave.step1.timeOfBirth,
             birthPlace: dataToSave.step1.birthPlace,
+            photoUrl: dataToSave.step1.photoUrl,
+            idProofFileUrl: dataToSave.step1.idProofFileUrl,
             profileData: stepPayload,
           });
         } else if (
@@ -293,15 +412,23 @@ export function useProfileForm(profileId?: string) {
           dataToSave.step1.lastName &&
           dataToSave.step1.gender &&
           dataToSave.step1.dateOfBirth &&
-          dataToSave.step1.mobile
+          dataToSave.step1.mobile &&
+          dataToSave.step1.email
         ) {
-          // If we have minimal required fields for creation, create remote profile
+          // If we have the required Step 1 fields for creation, create remote profile
           const created = await createProfile({
             firstName: dataToSave.step1.firstName,
             lastName: dataToSave.step1.lastName,
             gender: dataToSave.step1.gender,
             dateOfBirth: dataToSave.step1.dateOfBirth,
             mobile: dataToSave.step1.mobile,
+            email: dataToSave.step1.email,
+            idProofType: dataToSave.step1.idProofType,
+            idProofNumber: dataToSave.step1.idProofNumber,
+            timeOfBirth: dataToSave.step1.timeOfBirth,
+            birthPlace: dataToSave.step1.birthPlace,
+            photoUrl: dataToSave.step1.photoUrl,
+            idProofFileUrl: dataToSave.step1.idProofFileUrl,
             currentStep: dataToSave.currentStep,
             completedSteps: dataToSave.completedSteps,
             profileData: stepPayload,
@@ -313,6 +440,7 @@ export function useProfileForm(profileId?: string) {
                 ...prev,
                 id: created.id,
                 memberId: created.memberId,
+                userId: created.userId,
               };
               cacheLocally(updated);
               return updated;
@@ -397,13 +525,7 @@ export function useProfileForm(profileId?: string) {
         return true;
       }
 
-      // Moving forward requires validating current step
-      const stepErrors = validateStep(formData.currentStep, formData);
-      if (Object.keys(stepErrors).length > 0) {
-        setErrors(stepErrors);
-        return false;
-      }
-
+      // Allow direct navigation between steps; validation remains enforced on the Next action.
       setErrors({});
       const completedSet = new Set(formData.completedSteps);
       completedSet.add(formData.currentStep);

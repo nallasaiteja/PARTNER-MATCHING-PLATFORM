@@ -12,6 +12,8 @@ import {
   Min,
   Max,
   IsArray,
+  IsBoolean,
+  ArrayUnique,
 } from 'class-validator';
 
 // ---------------------------------------------------------------------------
@@ -22,6 +24,10 @@ export class CreateProfileDto {
   @IsNotEmpty()
   @Matches(/^\+?[0-9]{10,15}$/, { message: 'Mobile must be a valid phone number (10–15 digits)' })
   mobile: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Email must be a valid email address' })
+  email?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -62,6 +68,14 @@ export class CreateProfileDto {
   @IsOptional()
   @IsString()
   birthPlace?: string;
+
+  @IsOptional()
+  @IsString()
+  photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  idProofFileUrl?: string;
 
   @IsOptional()
   profileData?: Record<string, any>;
@@ -122,12 +136,240 @@ export class SaveStep1Dto {
   @IsOptional()
   @IsString()
   idProofFileUrl?: string;
+
+  // Physical & Lifestyle Details
+  @IsString()
+  @IsNotEmpty({ message: 'Height is required' })
+  height: string;
+
+  @IsOptional()
+  @IsString()
+  bloodGroup?: string;
+
+  @IsOptional()
+  @IsString()
+  motherTongue?: string;
+
+  @IsOptional()
+  @IsString()
+  healthCondition?: string;
+
+  @IsOptional()
+  @IsString()
+  complexion?: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'Marital status is required' })
+  maritalStatus: string;
+
+  @IsOptional()
+  @IsBoolean()
+  smoke?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  drink?: boolean;
+
+  @IsOptional()
+  @IsString()
+  foodPreference?: string;
+
+  @IsOptional()
+  @IsString()
+  aboutMe?: string;
+
+  @IsOptional()
+  @IsString()
+  hobbies?: string;
+
+  @IsOptional()
+  @IsArray()
+  spokenLanguages?: string[];
+
+  // Marital History
+  @IsOptional()
+  @IsString()
+  dateOfMarriage?: string;
+
+  @IsOptional()
+  @IsString()
+  dateOfDivorce?: string;
+
+  @IsOptional()
+  @IsString()
+  divorceReason?: string;
+
+  @IsOptional()
+  @IsString()
+  divorceCertificateUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  dateOfSpouseDeath?: string;
+
+  @IsOptional()
+  @IsString()
+  deathCertificateUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  havingChildren?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  sons?: any[];
+
+  @IsOptional()
+  @IsArray()
+  daughters?: any[];
+
+  // Current Living Address
+  @IsOptional()
+  @IsString()
+  currentCountry?: string;
+
+  @IsOptional()
+  @IsString()
+  currentState?: string;
+
+  @IsOptional()
+  @IsString()
+  currentDistrict?: string;
+
+  @IsOptional()
+  @IsString()
+  currentCity?: string;
+
+  @IsOptional()
+  @IsString()
+  currentVillage?: string;
+
+  @IsOptional()
+  @IsString()
+  currentAddress?: string;
+
+  // Contact & Application Meta
+  @IsOptional()
+  @IsString()
+  alternateMobile?: string;
+
+  @IsOptional()
+  @IsEmail()
+  alternateEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  bestTimeToCall?: string;
+
+  @IsOptional()
+  @IsString()
+  applicationFor?: string;
+
+  @IsOptional()
+  @IsString()
+  fillerName?: string;
+
+  @IsOptional()
+  @IsString()
+  fillerMobile?: string;
+
+  @IsOptional()
+  @IsString()
+  fillerRelation?: string;
+
+  @IsOptional()
+  @IsString()
+  source?: string;
+
+  @IsOptional()
+  @IsString()
+  nearestBranch?: string;
 }
 
 // ---------------------------------------------------------------------------
-// STEP 2 — Education & Professional (shell DTO)
+// STEP 2 — Education & Professional Details
 // ---------------------------------------------------------------------------
 export class SaveStep2Dto {
+  @IsOptional()
+  @IsString()
+  education?: string;
+
+  @IsOptional()
+  @IsString()
+  university?: string;
+
+  @IsOptional()
+  @IsString()
+  employedIn?: string;
+
+  @IsOptional()
+  @IsString()
+  currentEducationPursuing?: string;
+
+  @IsOptional()
+  @IsString()
+  universityStudying?: string;
+
+  @IsOptional()
+  @IsString()
+  universityAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  yearOfPursuing?: string;
+
+  @IsOptional()
+  @IsString()
+  profession?: string;
+
+  @IsOptional()
+  @IsString()
+  designation?: string;
+
+  @IsOptional()
+  @IsString()
+  workingLocation?: string;
+
+  @IsOptional()
+  @IsString()
+  workingState?: string;
+
+  @IsOptional()
+  @IsString()
+  workingCity?: string;
+
+  @IsOptional()
+  @IsString()
+  workingLocationAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  companyName?: string;
+
+  @IsOptional()
+  @IsString()
+  workingSince?: string;
+
+  @IsOptional()
+  @IsString()
+  totalExperience?: string;
+
+  @IsOptional()
+  @IsString()
+  annualIncome?: string;
+
+  @IsOptional()
+  @IsString()
+  propertyDetails?: string;
+
+  @IsOptional()
+  @IsString()
+  colleagueName?: string;
+
+  @IsOptional()
+  @IsString()
+  colleagueMobile?: string;
+
   @IsOptional()
   profileData?: Record<string, any>;
 }
@@ -168,6 +410,15 @@ export class UpdateProfileDto {
   @IsOptional()
   lastName?: string;
 
+  @IsString()
+  @IsOptional()
+  @Matches(/^\+?[0-9]{10,15}$/, { message: 'Mobile must be 10–15 digits, optionally starting with +' })
+  mobile?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'Email must be a valid email address' })
+  email?: string;
+
   @IsIn(['Male', 'Female'], { message: 'Gender must be Male or Female' })
   @IsOptional()
   gender?: string;
@@ -203,6 +454,14 @@ export class UpdateProfileDto {
   birthPlace?: string;
 
   @IsOptional()
+  @IsString()
+  photoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  idProofFileUrl?: string;
+
+  @IsOptional()
   profileData?: Record<string, any>;
 }
 
@@ -213,4 +472,16 @@ export class BlockProfileDto {
   @IsString()
   @IsOptional()
   reason?: string;
+}
+
+export class VerifyIdProofDto {
+  @IsBoolean()
+  verified: boolean;
+}
+
+export class ContactRevealPackagesDto {
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(['PAID'], { each: true })
+  packageTypes: string[];
 }

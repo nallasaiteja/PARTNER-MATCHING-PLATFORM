@@ -18,6 +18,14 @@ import {
   UpdateProfileDto,
   BlockProfileDto,
 } from './dto/profile.dto';
+import { validateStep1Address } from '../locations/location-address.validation';
+import { validateAndSanitizeStep1Community } from '../community/community-profile.validation';
+import { validateAndSanitizeStep1Lifestyle } from './lifestyle-profile.validation';
+import { validateAndSanitizeStep4 } from './partner-preferences.validation';
+import { applyPaymentInterestDateAttribution } from './payment-interest-date';
+import { validateAndSanitizeStep5 } from './verification-settings.validation';
+import { applyProfilePaymentDate } from './profile-payment-date';
+import { assertImmutableProfileFields } from './immutable-profile.validation';
 
 @Injectable()
 export class ProfilesService {
@@ -55,7 +63,7 @@ export class ProfilesService {
       where,
       include: {
         user: {
-          select: { id: true, mobile: true, email: true, role: true },
+          select: { id: true, mobile: true, email: true, role: true, mobileVerified: true, emailVerified: true },
         },
         ownerOrg: { select: { id: true, name: true, type: true } },
       },
@@ -71,7 +79,7 @@ export class ProfilesService {
       metadata: { count: profiles.length },
     });
 
-    return profiles;
+    return profiles.map((profile) => this.serializeProfileForActor(profile, actor));
   }
 
   /**
@@ -87,7 +95,7 @@ export class ProfilesService {
     const profile = await this.prisma.memberProfile.findUnique({
       where: { id: profileId },
       include: {
-        user: { select: { id: true, mobile: true, email: true, role: true } },
+        user: { select: { id: true, mobile: true, email: true, role: true, mobileVerified: true, emailVerified: true } },
         ownerOrg: { select: { id: true, name: true, type: true } },
       },
     });
@@ -100,7 +108,7 @@ export class ProfilesService {
           'Access denied: members can only view their own profile',
         );
       }
-      return profile;
+      return this.serializeProfileForActor(profile, actor);
     }
 
     // HQ-owned profiles: only HQ roles can access (or free team with direct ID)
@@ -151,7 +159,7 @@ export class ProfilesService {
       orgId: actor.organizationId,
     });
 
-    return profile;
+    return this.serializeProfileForActor(profile, actor);
   }
 
   /**
@@ -161,7 +169,7 @@ export class ProfilesService {
     const profile = await this.prisma.memberProfile.findUnique({
       where: { userId: actor.id },
       include: {
-        user: { select: { id: true, mobile: true, email: true, role: true } },
+        user: { select: { id: true, mobile: true, email: true, role: true, mobileVerified: true, emailVerified: true } },
         ownerOrg: { select: { id: true, name: true, type: true } },
       },
     });
@@ -170,7 +178,66 @@ export class ProfilesService {
       throw new NotFoundException('Member profile not found for current user');
     }
 
-    return profile;
+    return this.serializeProfileForActor(profile, actor);
+  }
+
+  async getContactRevealPackages() {
+    const setting = await this.prisma.platformSetting.findUnique({
+      where: { key: 'CONTACT_REVEAL_ACCEPTANCE_PACKAGES' },
+    });
+    const stored = setting?.value;
+    const packageTypes = Array.isArray(stored)
+      ? stored.filter((value): value is string => value === 'PAID')
+      : ['PAID'];
+    return { packageTypes };
+  }
+
+  async setContactRevealPackages(actor: any, packageTypes: string[]) {
+    const setting = await this.prisma.platformSetting.upsert({
+      where: { key: 'CONTACT_REVEAL_ACCEPTANCE_PACKAGES' },
+      create: {
+        key: 'CONTACT_REVEAL_ACCEPTANCE_PACKAGES',
+        value: packageTypes,
+        updatedById: actor.id,
+      },
+      update: { value: packageTypes, updatedById: actor.id },
+    });
+    await this.auditService.log({
+      actorId: actor.id,
+      actorRole: actor.role,
+      action: AuditAction.PROFILE_EDIT,
+      resourceType: 'PlatformSetting',
+      resourceId: setting.key,
+      orgId: actor.organizationId,
+      metadata: { setting: 'CONTACT_REVEAL_ACCEPTANCE_PACKAGES', packageTypes },
+    });
+    return { packageTypes };
+  }
+
+  private serializeProfileForActor(profile: any, actor: any) {
+    const profileData = (profile.profileData as Record<string, any>) || {};
+    const step5 = {
+      ...(profileData.step5 || {}),
+      mobileVerified: Boolean(profile.user?.mobileVerified),
+      emailVerified: Boolean(profile.user?.emailVerified),
+      idProofUploaded: Boolean(profile.idProofFileUrl),
+    };
+    const serialized: any = {
+      ...profile,
+      profileData: { ...profileData, step5 },
+    };
+    if (actor.role !== Role.MEMBER || profile.userId === actor.id) return serialized;
+
+    const step1 = { ...(profileData.step1 || {}) };
+    delete step1.mobile;
+    serialized.user = profile.user ? { ...profile.user, mobile: null } : profile.user;
+    serialized.profileData = {
+      ...serialized.profileData,
+      step1,
+    };
+    return {
+      ...serialized,
+    };
   }
 
   /**
@@ -181,7 +248,27 @@ export class ProfilesService {
     dto: CreateProfileDto,
     ipAddress?: string,
   ) {
+    let profileData = await this.validateAndSanitizeProfileData(dto.profileData);
     const actorRole = actor.role as RoleType;
+    if (profileData?.step5?.mobileRevelationPreference === 'Acceptance Preference') {
+      throw new ForbiddenException('Acceptance Preference requires a qualifying paid package');
+    }
+    const paymentDateUpdate = applyPaymentInterestDateAttribution(
+      profileData,
+      null,
+      actor,
+      undefined,
+      true,
+    );
+    profileData = paymentDateUpdate.profileData;
+    const profilePaymentDateUpdate = applyProfilePaymentDate(
+      profileData,
+      null,
+      actor,
+      undefined,
+      true,
+    );
+    profileData = profilePaymentDateUpdate.profileData;
 
     // Determine ownership
     let ownershipType: 'BRANCH' | 'FRANCHISE' | 'HQ' = 'BRANCH';
@@ -205,14 +292,18 @@ export class ProfilesService {
     const user = await this.prisma.user.create({
       data: {
         mobile: dto.mobile,
+        email: dto.email || null,
         passwordHash: tempPassword,
         role: 'MEMBER',
         organizationId: actor.organizationId,
       },
     });
 
+    const memberId = `M${new Date().getFullYear()}${String(Date.now()).slice(-6)}`;
+
     const profile = await this.prisma.memberProfile.create({
       data: {
+        memberId,
         userId: user.id,
         firstName: dto.firstName,
         lastName: dto.lastName,
@@ -224,7 +315,9 @@ export class ProfilesService {
         idProofNumber: dto.idProofNumber,
         timeOfBirth: dto.timeOfBirth,
         birthPlace: dto.birthPlace,
-        profileData: dto.profileData as any,
+        photoUrl: dto.photoUrl,
+        idProofFileUrl: dto.idProofFileUrl,
+        profileData: profileData as any,
         ownershipType: ownershipType as any,
         ownerOrgId: actor.organizationId,
         originatingOrgId: actor.organizationId,
@@ -239,6 +332,10 @@ export class ProfilesService {
       resourceType: 'MemberProfile',
       resourceId: profile.id,
       orgId: actor.organizationId,
+      metadata: {
+        ...(paymentDateUpdate.auditMetadata || {}),
+        ...(profilePaymentDateUpdate.auditMetadata || {}),
+      },
       ipAddress,
     });
 
@@ -256,6 +353,7 @@ export class ProfilesService {
     dto: UpdateProfileDto,
     ipAddress?: string,
   ) {
+    const profileData = await this.validateAndSanitizeProfileData(dto.profileData);
     await this.scopeGuard.requireProfileOwnership(
       actor.id,
       actor.role,
@@ -270,15 +368,54 @@ export class ProfilesService {
 
     const existing = await this.prisma.memberProfile.findUnique({
       where: { id: profileId },
+      include: {
+        user: { select: { mobile: true, email: true, mobileVerified: true, emailVerified: true } },
+      },
     });
 
     if (!existing) {
       throw new NotFoundException('Profile not found');
     }
 
-    const mergedProfileData = dto.profileData
-      ? { ...((existing.profileData as Record<string, any>) || {}), ...dto.profileData }
-      : existing.profileData;
+    assertImmutableProfileFields(existing, existing.user, dto, profileData);
+
+    if (profileData?.step5?.mobileRevelationPreference === 'Acceptance Preference') {
+      const eligiblePackages = await this.getContactRevealPackages();
+      if (!eligiblePackages.packageTypes.includes(existing.packageType)) {
+        throw new ForbiddenException('Acceptance Preference requires a qualifying paid package');
+      }
+    }
+
+    const paymentDateUpdate = applyPaymentInterestDateAttribution(
+      profileData,
+      (existing.profileData as Record<string, any>) || {},
+      actor,
+      existing.userId,
+    );
+
+    const profilePaymentDateUpdate = applyProfilePaymentDate(
+      paymentDateUpdate.profileData,
+      (existing.profileData as Record<string, any>) || {},
+      actor,
+      existing.userId,
+    );
+
+    const existingProfileData = (existing.profileData as Record<string, any>) || {};
+    const mergedProfileData = (profilePaymentDateUpdate.profileData
+      ? { ...existingProfileData, ...profilePaymentDateUpdate.profileData }
+      : existing.profileData) as Record<string, any> | null;
+    if (mergedProfileData && profileData?.step5) {
+      const storedStep5 = existingProfileData.step5 || {};
+      mergedProfileData.step5 = {
+        ...mergedProfileData.step5,
+        mobileVerified: Boolean(existing.user?.mobileVerified),
+        emailVerified: Boolean(existing.user?.emailVerified),
+        idProofUploaded: Boolean(existing.idProofFileUrl),
+        idProofVerified: storedStep5.idProofVerified || false,
+        idProofVerifiedAt: storedStep5.idProofVerifiedAt,
+        idProofVerifiedBy: storedStep5.idProofVerifiedBy,
+      };
+    }
 
     const updated = await this.prisma.memberProfile.update({
       where: { id: profileId },
@@ -293,6 +430,8 @@ export class ProfilesService {
         idProofNumber: dto.idProofNumber,
         timeOfBirth: dto.timeOfBirth,
         birthPlace: dto.birthPlace,
+        photoUrl: dto.photoUrl,
+        idProofFileUrl: dto.idProofFileUrl,
         profileData: mergedProfileData as any,
       },
     });
@@ -304,9 +443,102 @@ export class ProfilesService {
       resourceType: 'MemberProfile',
       resourceId: profileId,
       orgId: actor.organizationId,
+      metadata: {
+        ...(paymentDateUpdate.auditMetadata || {}),
+        ...(profilePaymentDateUpdate.auditMetadata || {}),
+      },
       ipAddress,
     });
 
+    return updated;
+  }
+
+  private async validateAndSanitizeProfileData(profileData?: Record<string, any>) {
+    if (!profileData || typeof profileData !== 'object' || Array.isArray(profileData)) {
+      return profileData;
+    }
+
+    const step1 = profileData?.step1;
+    let sanitizedProfileData = { ...profileData };
+
+    if (step1 && typeof step1 === 'object') {
+      const locations = await this.prisma.locationMaster.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, level: true, parentId: true, isActive: true },
+      });
+      validateStep1Address(step1, locations);
+
+      const communityOptions = await this.prisma.communityMaster.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, level: true, parentId: true, isActive: true },
+      });
+      const sanitizedCommunity = validateAndSanitizeStep1Community(step1, communityOptions);
+      sanitizedProfileData.step1 = validateAndSanitizeStep1Lifestyle(sanitizedCommunity);
+    }
+
+    if (sanitizedProfileData.step4 && typeof sanitizedProfileData.step4 === 'object') {
+      sanitizedProfileData.step4 = validateAndSanitizeStep4(sanitizedProfileData.step4);
+    }
+    if (sanitizedProfileData.step5 && typeof sanitizedProfileData.step5 === 'object') {
+      sanitizedProfileData.step5 = validateAndSanitizeStep5(sanitizedProfileData.step5);
+    }
+    return sanitizedProfileData;
+  }
+
+  async verifyIdProof(
+    actor: any,
+    profileId: string,
+    verified: boolean,
+    ipAddress?: string,
+  ) {
+    const allowedRoles = [Role.SUPER_ADMIN, Role.ADMIN, Role.BRANCH_MANAGER];
+    if (!allowedRoles.includes(actor.role)) {
+      throw new ForbiddenException('Only Admin or Branch Manager can verify ID proof');
+    }
+
+    const existing = await this.prisma.memberProfile.findUnique({
+      where: { id: profileId },
+    });
+    if (!existing) throw new NotFoundException('Profile not found');
+    if (!existing.idProofFileUrl) {
+      throw new BadRequestException('Upload an ID proof before reviewing it');
+    }
+    if (actor.role === Role.BRANCH_MANAGER) {
+      await this.scopeGuard.requireOrganizationScope(
+        actor.role,
+        actor.organizationId,
+        profileId,
+        actor.id,
+      );
+    }
+
+    const profileData = (existing.profileData as Record<string, any>) || {};
+    const step5 = {
+      ...(profileData.step5 || {}),
+      idProofUploaded: true,
+      idProofVerified: verified,
+      idProofVerifiedAt: new Date().toISOString(),
+      idProofVerifiedBy: actor.id,
+    };
+    const updated = await this.prisma.memberProfile.update({
+      where: { id: profileId },
+      data: { profileData: { ...profileData, step5 } as any },
+    });
+
+    await this.auditService.log({
+      actorId: actor.id,
+      actorRole: actor.role,
+      action: AuditAction.PROFILE_EDIT,
+      resourceType: 'MemberProfile',
+      resourceId: profileId,
+      orgId: actor.organizationId,
+      metadata: {
+        idProofVerified: verified,
+        idProofVerifiedAt: step5.idProofVerifiedAt,
+        idProofVerifiedBy: actor.id,
+      },
+      ipAddress,
+    });
     return updated;
   }
 

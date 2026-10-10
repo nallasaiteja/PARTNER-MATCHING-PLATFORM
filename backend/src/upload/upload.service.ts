@@ -1,11 +1,15 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+import { ScopeGuardService } from '../common/guards/scope-guard.service';
 
 @Injectable()
 export class UploadService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scopeGuard: ScopeGuardService,
+  ) {}
 
   /**
    * Ensures upload directories exist on startup.
@@ -31,34 +35,40 @@ export class UploadService {
   ): Promise<{ url: string; filename: string }> {
     if (!file) throw new BadRequestException('No file uploaded');
 
-    // Validate it's an image
     if (!file.mimetype.startsWith('image/')) {
       fs.unlinkSync(file.path);
       throw new BadRequestException('Only image files are allowed for profile photos');
     }
 
-    // Max 2MB on server side (frontend should compress to 500KB, but allow some margin)
-    if (file.size > 2 * 1024 * 1024) {
+    const maxPhotoBytes = 500 * 1024;
+    if (file.size > maxPhotoBytes) {
       fs.unlinkSync(file.path);
-      throw new BadRequestException('Photo file too large. Maximum size is 2MB.');
+      throw new BadRequestException('Photo must be 500KB or smaller. Please reduce size or crop the image.');
     }
 
-    const url = `/uploads/photos/${file.filename}`;
+    const dbProfile = await this.prisma.memberProfile.findUnique({ where: { id: profileId } });
+    const memberId = dbProfile?.memberId || profileId;
+    const safeName = `${memberId.replace(/[^a-zA-Z0-9_-]/g, '-') || 'member'}-photo.jpg`;
+    const destDir = path.join(process.cwd(), 'uploads', 'photos');
+    const finalPath = path.join(destDir, safeName);
+    if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath);
+    fs.renameSync(file.path, finalPath);
 
-    // Update the MemberProfile record
+    const url = `/uploads/photos/${safeName}`;
+
     try {
       await this.prisma.memberProfile.update({
         where: { id: profileId },
         data: {
           photoUrl: url,
-          photoFilename: file.filename,
+          photoFilename: safeName,
         },
       });
     } catch {
       // Profile may not exist yet (draft mode); that's OK
     }
 
-    return { url, filename: file.filename };
+    return { url, filename: safeName };
   }
 
   /**
@@ -67,6 +77,7 @@ export class UploadService {
   async saveIdProof(
     file: Express.Multer.File,
     profileId: string,
+    actor: any,
   ): Promise<{ url: string; filename: string }> {
     if (!file) throw new BadRequestException('No file uploaded');
 
@@ -81,18 +92,73 @@ export class UploadService {
       throw new BadRequestException('ID proof file too large. Maximum size is 5MB.');
     }
 
-    const url = `/uploads/id-proofs/${file.filename}`;
-
     try {
+      const profile = await this.prisma.memberProfile.findUnique({
+        where: { id: profileId },
+      });
+      if (!profile) throw new BadRequestException('Profile not found');
+      await this.scopeGuard.requireProfileOwnership(actor.id, actor.role, profileId);
+      await this.scopeGuard.requireOrganizationScope(
+        actor.role,
+        actor.organizationId,
+        profileId,
+        actor.id,
+      );
+      if (profile.idProofFileUrl && !profile.idProofFileUrl.startsWith('blob:')) {
+        throw new BadRequestException('An ID proof has already been uploaded');
+      }
+
+      const url = `/uploads/id-proofs/${file.filename}`;
+      const profileData = (profile.profileData as Record<string, any>) || {};
       await this.prisma.memberProfile.update({
         where: { id: profileId },
-        data: { idProofFileUrl: url },
+        data: {
+          idProofFileUrl: url,
+          profileData: {
+            ...profileData,
+            step5: {
+              ...(profileData.step5 || {}),
+              idProofUploaded: true,
+              idProofVerified: false,
+              idProofVerifiedAt: null,
+              idProofVerifiedBy: null,
+            },
+          } as any,
+        },
       });
-    } catch {
-      // Profile may not exist yet; that's OK
+      return { url, filename: file.filename };
+    } catch (error) {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      throw error;
+    }
+  }
+
+  async getIdProof(profileId: string, actor: any) {
+    const profile = await this.prisma.memberProfile.findUnique({
+      where: { id: profileId },
+    });
+    if (!profile?.idProofFileUrl) throw new NotFoundException('ID proof not found');
+    await this.scopeGuard.requireProfileOwnership(actor.id, actor.role, profileId);
+    await this.scopeGuard.requireOrganizationScope(
+      actor.role,
+      actor.organizationId,
+      profileId,
+      actor.id,
+    );
+
+    const filename = path.basename(profile.idProofFileUrl);
+    const directory = path.resolve(process.cwd(), 'uploads', 'id-proofs');
+    const filePath = path.resolve(directory, filename);
+    if (!filename || !filePath.startsWith(`${directory}${path.sep}`) || !fs.existsSync(filePath)) {
+      throw new NotFoundException('ID proof file not found');
     }
 
-    return { url, filename: file.filename };
+    const extension = path.extname(filename).toLowerCase();
+    const contentType = extension === '.pdf' ? 'application/pdf'
+      : extension === '.png' ? 'image/png'
+        : extension === '.webp' ? 'image/webp'
+          : 'image/jpeg';
+    return { filePath, filename, contentType };
   }
 
   /**

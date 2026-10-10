@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:community": "node --experimental-strip-types --test tests/communityFields.test.ts",
+    "test:lifestyle": "node --experimental-strip-types --test tests/lifestyleFields.test.ts"
   },
   "dependencies": {
     "react": "^18.2.0",

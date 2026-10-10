@@ -42,6 +42,145 @@ async function main() {
 
   console.log('✅ Organizations created');
 
+  const india = await prisma.locationMaster.upsert({
+    where: { id: 'location-country-india' },
+    update: { name: 'India', level: 'COUNTRY', parentId: null, isActive: true },
+    create: { id: 'location-country-india', name: 'India', level: 'COUNTRY' },
+  });
+
+  const indiaStates = [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+    'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+    'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+    'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
+  ];
+
+  for (const name of indiaStates) {
+    const id = `location-in-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    await prisma.locationMaster.upsert({
+      where: { id },
+      update: { name, level: 'STATE', parentId: india.id, isActive: true },
+      create: { id, name, level: 'STATE', parentId: india.id },
+    });
+  }
+
+  console.log('✅ Location master data created');
+
+  const religions = [
+    { id: 'community-religion-hindu', name: 'Hindu' },
+    { id: 'community-religion-christian', name: 'Christian' },
+    { id: 'community-religion-muslim', name: 'Muslim' },
+    { id: 'community-religion-caste-converted', name: 'Caste Converted' },
+  ];
+  for (const religion of religions) {
+    await prisma.communityMaster.upsert({
+      where: { id: religion.id },
+      update: { name: religion.name, level: 'RELIGION', parentId: null, isActive: true },
+      create: { ...religion, level: 'RELIGION' },
+    });
+  }
+
+  const hinduDropdowns = [
+    {
+      level: 'STAR' as const,
+      names: ['Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra', 'Punarvasu', 'Pushya', 'Ashlesha', 'Magha', 'Purva Phalguni', 'Uttara Phalguni', 'Hasta', 'Chitra', 'Swati', 'Vishakha', 'Anuradha', 'Jyeshtha', 'Mula', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana', 'Dhanishta', 'Shatabhisha', 'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati'],
+    },
+    {
+      level: 'MOON_SIGN' as const,
+      names: ['Mesha', 'Vrishabha', 'Mithuna', 'Karkataka', 'Simha', 'Kanya', 'Tula', 'Vrischika', 'Dhanu', 'Makara', 'Kumbha', 'Meena'],
+    },
+    { level: 'PADAM' as const, names: ['1', '2', '3', '4'] },
+  ];
+  for (const dropdown of hinduDropdowns) {
+    for (const name of dropdown.names) {
+      const id = `community-${dropdown.level.toLowerCase()}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      await prisma.communityMaster.upsert({
+        where: { id },
+        update: { name, level: dropdown.level, parentId: null, isActive: true },
+        create: { id, name, level: dropdown.level },
+      });
+    }
+  }
+
+  console.log('✅ Religion and Hindu community master data created');
+
+  // ─── Castes per Religion ──────────────────────────────────
+  const castesPerReligion: Record<string, string[]> = {
+    'community-religion-hindu': [
+      'Arya Vysya', 'Brahmin', 'Kamma', 'Kapu', 'Reddy', 'Yadav', 'Padmashali',
+      'Munnuru Kapu', 'Velama', 'Goud', 'Balija', 'Mudiraj', 'Naidu', 'Kshatriya',
+      'Rajput', 'Kurmi', 'Maratha', 'Lingayat', 'Vokkaliga', 'Nair', 'Ezhava',
+      'Chettiar', 'Pillai', 'Gounder', 'Thevar', 'Vanniyar', 'Meenavar', 'Nadar',
+      'Vishwakarma', 'SC', 'ST', 'Other',
+    ],
+    'community-religion-christian': [
+      'Roman Catholic', 'Protestant', 'Syrian Christian', 'CSI', 'Pentecostal',
+      'Seventh Day Adventist', 'Marthoma', 'Born Again', 'Church of South India',
+      'Latin Catholic', 'Anglican', 'Baptist', 'Methodist', 'SC', 'Other',
+    ],
+    'community-religion-muslim': [
+      'Sunni', 'Shia', 'Hanafi', 'Shafi', 'Deobandi', 'Barelvi', 'Ahmadiyya',
+      'Bohra', 'Khoja', 'Memon', 'Pathan', 'Syed', 'Sheikh', 'Mughal', 'Other',
+    ],
+    'community-religion-caste-converted': ['SC', 'ST', 'BC', 'OC', 'Other'],
+  };
+
+  for (const [religionId, casteNames] of Object.entries(castesPerReligion)) {
+    for (const name of casteNames) {
+      const id = `community-caste-${religionId.replace('community-religion-', '')}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      await prisma.communityMaster.upsert({
+        where: { id },
+        update: { name, level: 'CASTE', parentId: religionId, isActive: true },
+        create: { id, name, level: 'CASTE', parentId: religionId },
+      });
+    }
+  }
+
+  console.log('✅ Castes seeded under each religion');
+
+  // ─── Sub-Castes for key castes ────────────────────────────
+  const subCastesPerCaste: Record<string, string[]> = {
+    'community-caste-hindu-arya-vysya': ['Komati', 'Kalinga Komati', 'Penugonda Komati', 'Trivarnika Komati', 'Other'],
+    'community-caste-hindu-brahmin': ['Smartha', 'Sri Vaishnava', 'Madhwa', 'Niyogi', 'Vaidiki', 'Desastha', 'Konkanastha', 'Iyer', 'Iyengar', 'Namboothiri', 'Havyaka', 'Other'],
+    'community-caste-hindu-reddy': ['Panta Reddy', 'Motati Reddy', 'Desuru Reddy', 'Palnadu Reddy', 'Pedakanti Reddy', 'Other'],
+    'community-caste-hindu-kamma': ['Illuvelleni', 'Pedda Kammavaru', 'Chinna Kammavaru', 'Gollavaru', 'Other'],
+    'community-caste-hindu-kapu': ['Munnuru Kapu', 'Turpu Kapu', 'Telaga', 'Ontari', 'Balija Naidu', 'Other'],
+  };
+
+  for (const [casteId, subNames] of Object.entries(subCastesPerCaste)) {
+    for (const name of subNames) {
+      const id = `community-sub-caste-${casteId.replace('community-caste-', '')}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      await prisma.communityMaster.upsert({
+        where: { id },
+        update: { name, level: 'SUB_CASTE', parentId: casteId, isActive: true },
+        create: { id, name, level: 'SUB_CASTE', parentId: casteId },
+      });
+    }
+  }
+
+  console.log('✅ Sub-castes seeded under key castes');
+
+  // ─── Gothrams ────────────────────────────────────────────
+  const gothrams = [
+    'Bharadwaja', 'Kashyapa', 'Vasishta', 'Vishwamitra', 'Gautama', 'Jamadagni',
+    'Atri', 'Agastya', 'Angirasa', 'Parasara', 'Shandilya', 'Kaundinya',
+    'Dhananjaya', 'Haritha', 'Gargya', 'Vatsa', 'Maudgalya', 'Nidanaga',
+    'Kaushika', 'Manu', 'Mandavya', 'Other',
+  ];
+  for (const name of gothrams) {
+    const id = `community-gothram-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    await prisma.communityMaster.upsert({
+      where: { id },
+      update: { name, level: 'GOTHRAM', parentId: null, isActive: true },
+      create: { id, name, level: 'GOTHRAM' },
+    });
+  }
+
+  console.log('✅ Gothrams seeded');
+
   // ─── Staff Users ──────────────────────────────────────────
   const users = [
     // HQ

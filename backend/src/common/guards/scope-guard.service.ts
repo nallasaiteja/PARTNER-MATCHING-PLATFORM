@@ -32,10 +32,6 @@ export class ScopeGuardService {
       return;
     }
 
-    if (!actorOrgId) {
-      throw new ForbiddenException('Access denied: no organization assigned');
-    }
-
     const profile = await this.prisma.memberProfile.findUnique({
       where: { id: profileOwnerId },
     });
@@ -50,6 +46,10 @@ export class ScopeGuardService {
         throw new ForbiddenException('Access denied: members can only access their own profile');
       }
       return;
+    }
+
+    if (!actorOrgId) {
+      throw new ForbiddenException('Access denied: no organization assigned');
     }
 
     // HQ-owned profiles: only HQ roles can access

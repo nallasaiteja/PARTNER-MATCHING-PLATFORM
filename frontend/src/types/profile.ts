@@ -89,21 +89,33 @@ export interface Step1Data {
 
   // Native Address (for matching/filtering)
   country?: string;
+  countryId?: string;
   state?: string;
+  stateId?: string;
   district?: string;
+  districtId?: string;
   mandal?: string;
+  mandalId?: string;
   village?: string;
+  villageId?: string;
 
   // Religion & Community (IMMUTABLE)
   religion?: string;
+  religionId?: string;
   caste?: string;         // filtered by religion
+  casteId?: string;
   subCaste?: string;
+  subCasteId?: string;
   casteConverted?: boolean;
   // Hindu-only fields
   star?: string;
+  starId?: string;
   moonSign?: string;    // Raasi
+  moonSignId?: string;
   padam?: string;
+  padamId?: string;
   gothram?: string;
+  gothramId?: string;
   uncleGothram?: string;   // Arya Vysya only
   swagothram?: string;     // Arya Vysya only
   kujaDosham?: 'Yes' | 'No' | "Don't Know";
@@ -278,9 +290,11 @@ export interface Step4Data {
   preferredProfession?: string[];        // Multi-select
   preferredCitiesOfWork?: string[];      // Multi-select
   passportHolderPreference?: boolean;
-  preferredWorkingLocation?: 'India' | 'Abroad' | 'Any';
+  preferredWorkingLocation?: 'India' | 'Abroad';
   preferredCountriesAbroad?: string[];   // If Abroad
   paymentInterestDate?: string;
+  paymentInterestDateSetBy?: 'MEMBER' | 'STAFF';
+  paymentInterestDateSetByStaffId?: string;
 }
 
 // ─── Step 5 — Verification & Settings ─────────────────────────────────────
@@ -290,8 +304,13 @@ export interface Step5Data {
   emailVerified: boolean;
   idProofUploaded: boolean;
   idProofVerified: boolean;
+  idProofVerifiedAt?: string;
+  idProofVerifiedBy?: string;
   willingToTakePackage?: boolean;
   paymentInterestDate?: string;
+  profilePaymentDate?: string;
+  profilePaymentDateSetBy?: 'MEMBER' | 'STAFF';
+  profilePaymentDateSetByStaffId?: string;
   mobileRevelationPreference: '0 Hours' | '24 Hours' | '72 Hours' | 'Acceptance Preference';
 }
 
@@ -301,6 +320,7 @@ export interface MemberProfileFormData {
   id?: string;
   memberId?: string;
   userId?: string;
+  packageType?: 'FREE' | 'PAID';
   currentStep: StepNumber;
   completedSteps: StepNumber[];
   step1: Step1Data;
