@@ -1,8 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { MemberAuthModal } from './MemberAuthModal';
 import './Landing.css';
 
 const LandingPage: React.FC = () => {
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+
+  const openAuth = (tab: 'login' | 'register') => {
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  };
+
   return (
     <div className="landing-container">
       <header className="navbar">
@@ -11,7 +20,13 @@ const LandingPage: React.FC = () => {
           <Link to="/">Home</Link>
           <Link to="#about">About</Link>
           <Link to="/forgot-password">Forgot password</Link>
-          <Link to="/member/dashboard" className="login-btn">Login / Register</Link>
+          <button
+            onClick={() => openAuth('login')}
+            className="login-btn"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }}
+          >
+            Login / Register
+          </button>
         </nav>
       </header>
 
@@ -23,11 +38,20 @@ const LandingPage: React.FC = () => {
             Telangana, and worldwide. Inclusive of all castes and backgrounds.
           </p>
           <div className="hero-buttons">
-            <button onClick={() => {
-              localStorage.setItem('user', JSON.stringify({ id: 'user-member-free', role: 'MEMBER', status: 'ACTIVE', organizationId: 'org-branch-a' }));
-              window.location.href = '/member/profile';
-            }} className="btn-primary" style={{ background: '#e91e63', color: '#fff', fontWeight: 'bold' }}>
-              Member Data Entry (5-Step Form)
+            <button
+              onClick={() => openAuth('register')}
+              className="btn-primary"
+              style={{ background: '#e91e63', color: '#fff', fontWeight: 'bold' }}
+            >
+              🚀 Quick Register (Section 4.1)
+            </button>
+
+            <button
+              onClick={() => openAuth('login')}
+              className="btn-secondary"
+              style={{ border: '2px solid #e91e63', color: '#e91e63', fontWeight: 'bold' }}
+            >
+              🔐 Member Login (OTP / ID / Pass)
             </button>
 
             <button onClick={() => {
@@ -80,6 +104,12 @@ const LandingPage: React.FC = () => {
       <footer className="footer">
         <p>&copy; 2026 Partner Matching Platform. All rights reserved.</p>
       </footer>
+
+      <MemberAuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab={authModalTab}
+      />
     </div>
   );
 };

@@ -19,6 +19,13 @@ import {
   ResetPasswordDto,
   VerifyOtpDto,
 } from './dto/step5-auth.dto';
+import {
+  RequestRegistrationOtpDto,
+  RegisterMemberDto,
+  RequestLoginOtpDto,
+  VerifyLoginOtpDto,
+} from './dto/member-auth.dto';
+
 
 @Controller('auth')
 export class AuthController {
@@ -95,4 +102,55 @@ export class AuthController {
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.newPassword);
   }
+
+  // ──────────────────────────────────────────────────────────
+  // SECTION 4.1: MEMBER REGISTRATION & OTP LOGIN
+  // ──────────────────────────────────────────────────────────
+
+  @Post('register/otp/request')
+  @HttpCode(HttpStatus.OK)
+  requestRegistrationOtp(@Body() dto: RequestRegistrationOtpDto) {
+    return this.authService.requestRegistrationOtp(dto);
+  }
+
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  registerMember(@Body() dto: RegisterMemberDto, @Req() req: any) {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'];
+    return this.authService.registerMember(dto, ipAddress);
+  }
+
+  @Post('login/otp/request')
+  @HttpCode(HttpStatus.OK)
+  requestLoginOtp(@Body() dto: RequestLoginOtpDto) {
+    return this.authService.requestLoginOtp(dto);
+  }
+
+  @Post('login/otp/verify')
+  @HttpCode(HttpStatus.OK)
+  verifyLoginOtp(@Body() dto: VerifyLoginOtpDto, @Req() req: any) {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'];
+    return this.authService.verifyLoginOtp(dto, ipAddress);
+  }
+
+  @Get('terms')
+  getTermsAndConditions() {
+    return this.authService.getTermsAndConditions();
+  }
+
+  @Post('terms/accept')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  acceptTermsAndConditions(@CurrentUser() user: any) {
+    return this.authService.acceptTermsAndConditions(user.id);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  logout(@CurrentUser() user: any, @Req() req: any) {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'];
+    return this.authService.logout(user, ipAddress);
+  }
 }
+

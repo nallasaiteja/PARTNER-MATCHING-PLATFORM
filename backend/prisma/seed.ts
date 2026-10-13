@@ -352,6 +352,154 @@ async function main() {
 
   console.log('✅ Member profiles created');
 
+  // ─── Packages (Section 5.7) ──────────────────────────────
+  const packages = [
+    {
+      id: 'pkg-silver',
+      name: 'Silver',
+      validityDays: 30,
+      contactReveals: 15,
+      ticketQuota: 3,
+      emiEligible: false,
+      cost: 3000,
+      servicesProvided: 'Access to Verified & Matched view, 15 contact reveals, 3 support tickets, basic matchmaking',
+      featuredProfileEligible: false,
+    },
+    {
+      id: 'pkg-gold',
+      name: 'Gold',
+      validityDays: 90,
+      contactReveals: 50,
+      ticketQuota: 10,
+      emiEligible: false,
+      cost: 7500,
+      servicesProvided: 'Full profile details & photos, 50 contact reveals, 10 support tickets, WhatsApp biodata sharing',
+      featuredProfileEligible: false,
+    },
+    {
+      id: 'pkg-platinum',
+      name: 'Platinum',
+      validityDays: 180,
+      contactReveals: 120,
+      ticketQuota: 20,
+      emiEligible: true,
+      cost: 12000,
+      servicesProvided: 'Acceptance contact reveals, 120 contact reveals, 20 support tickets, priority profile highlighting, dedicated support',
+      featuredProfileEligible: true,
+    },
+    {
+      id: 'pkg-diamond',
+      name: 'Diamond VIP',
+      validityDays: 365,
+      contactReveals: 300,
+      ticketQuota: 50,
+      emiEligible: true,
+      cost: 25000,
+      servicesProvided: 'VIP Executive matchmaking, Featured Profile on home & browse, 300 contact reveals, 50 tickets, relationship manager',
+      featuredProfileEligible: true,
+    },
+  ];
+
+  for (const pkg of packages) {
+    await prisma.packageMaster.upsert({
+      where: { id: pkg.id },
+      update: pkg,
+      create: pkg,
+    });
+  }
+
+  console.log('✅ Packages created');
+
+  // ─── Platform Settings (Terms & Bank details) ─────────────
+  await prisma.platformSetting.upsert({
+    where: { key: 'TERMS_AND_CONDITIONS' },
+    update: {
+      value: {
+        title: 'Partner Matching Platform — Terms and Conditions',
+        version: '1.0',
+        content:
+          '1. Eligibility: Members must be at least 18 (female) or 21 (male) years of age.\n2. Genuine Information: All submitted information, certificates, and ID proof must be authentic and verifiable.\n3. Privacy & Safety: Profile contact details are protected and disclosed in accordance with individual privacy settings and package entitlements.\n4. No Commercial Abuse: Accounts are strictly for personal matrimonial partner search. Harassment, unauthorized data extraction, or commercial misuse will result in permanent blocking.\n5. Permanent Records: In accordance with our security policies, profiles cannot be permanently deleted and are retained permanently for fraud prevention and audit verification.',
+      },
+    },
+    create: {
+      key: 'TERMS_AND_CONDITIONS',
+      value: {
+        title: 'Partner Matching Platform — Terms and Conditions',
+        version: '1.0',
+        content:
+          '1. Eligibility: Members must be at least 18 (female) or 21 (male) years of age.\n2. Genuine Information: All submitted information, certificates, and ID proof must be authentic and verifiable.\n3. Privacy & Safety: Profile contact details are protected and disclosed in accordance with individual privacy settings and package entitlements.\n4. No Commercial Abuse: Accounts are strictly for personal matrimonial partner search. Harassment, unauthorized data extraction, or commercial misuse will result in permanent blocking.\n5. Permanent Records: In accordance with our security policies, profiles cannot be permanently deleted and are retained permanently for fraud prevention and audit verification.',
+      },
+    },
+  });
+
+  await prisma.platformSetting.upsert({
+    where: { key: 'PAYMENT_BANK_DETAILS' },
+    update: {
+      value: {
+        accountHolder: 'Partner Matching Platform Pvt Ltd',
+        accountNumber: '50200012345678',
+        ifscCode: 'HDFC0001234',
+        bankName: 'HDFC Bank, Banjara Hills Branch',
+        upiId: 'partnermatch@hdfcbank',
+        upiQrUrl: '/assets/upi-qr-sample.png',
+      },
+    },
+    create: {
+      key: 'PAYMENT_BANK_DETAILS',
+      value: {
+        accountHolder: 'Partner Matching Platform Pvt Ltd',
+        accountNumber: '50200012345678',
+        ifscCode: 'HDFC0001234',
+        bankName: 'HDFC Bank, Banjara Hills Branch',
+        upiId: 'partnermatch@hdfcbank',
+        upiQrUrl: '/assets/upi-qr-sample.png',
+      },
+    },
+  });
+
+  console.log('✅ Platform Settings created');
+
+  // Assign Diamond package to profile-paid for testing paid entitlements
+  await prisma.memberProfile.update({
+    where: { id: 'profile-paid' },
+    data: {
+      currentPackageId: 'pkg-diamond',
+      packageExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      contactsQuota: 300,
+      contactsRevealedCount: 2,
+      memberId: 'M2026000001',
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+    },
+  });
+
+  await prisma.memberProfile.update({
+    where: { id: 'profile-free' },
+    data: {
+      memberId: 'M2026000002',
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+    },
+  });
+
+  await prisma.memberProfile.update({
+    where: { id: 'profile-branch-b' },
+    data: {
+      memberId: 'M2026000003',
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+    },
+  });
+
+  await prisma.memberProfile.update({
+    where: { id: 'profile-agent-b' },
+    data: {
+      memberId: 'M2026000004',
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+    },
+  });
+
   console.log('\n🎉 Seed complete!\n');
   console.log('Login credentials (password: Test@1234):');
   console.log('  Super Admin:       9000000001');

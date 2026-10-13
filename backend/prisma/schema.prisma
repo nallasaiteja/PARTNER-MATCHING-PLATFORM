@@ -233,11 +233,30 @@ model MemberProfile {
   // Catch-all for additional data not yet given their own columns
   profileData Json?
 
+  // Section 4: Terms & Package Entitlements
+  termsAccepted          Boolean   @default(false)
+  termsAcceptedAt        DateTime?
+  createdByType          String    @default("MEMBER") // "MEMBER" or "STAFF"
+  packageExpiresAt       DateTime?
+  contactsRevealedCount  Int       @default(0)
+  contactsQuota          Int       @default(0)
+  currentPackageId       String?
+  currentPackage         PackageMaster? @relation(fields: [currentPackageId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   salesCommissionRecords SalesCommissionRecord[]
   supportTickets         SupportTicket[]
+  sentInterests          MemberInterest[]        @relation("SentInterests")
+  receivedInterests      MemberInterest[]        @relation("ReceivedInterests")
+  sentRevealRequests     ContactRevealRequest[]  @relation("SentRevealRequests")
+  receivedRevealRequests ContactRevealRequest[]  @relation("ReceivedRevealRequests")
+  shortlists             MemberShortlist[]       @relation("MemberShortlists")
+  blocklists             MemberBlocklist[]       @relation("MemberBlocklists")
+  viewedProfiles         ProfileViewLog[]        @relation("ViewedProfiles")
+  profileViewers         ProfileViewLog[]        @relation("ProfileViewers")
+  invoices               MemberInvoice[]
 
   @@index([ownerOrgId])
   @@index([ownershipType])
@@ -322,6 +341,12 @@ enum AuditAction {
   OTP_SENT
   OTP_VERIFIED
   PERMISSION_OVERRIDE
+  INTEREST_SENT
+  INTEREST_ACCEPTED
+  INTEREST_REJECTED
+  CONTACT_REVEAL_REQUEST
+  CONTACT_REVEALED
+  PACKAGE_UPGRADE
 }
 
 model AuditLog {
@@ -342,3 +367,118 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
 }
+
+// ---------------------------------------------------------
+// SECTION 4: PACKAGES, INTERESTS, CONTACT REVEALS, ACTIVITY
+// ---------------------------------------------------------
+
+model PackageMaster {
+  id                     String          @id @default(uuid())
+  name                   String          @unique // e.g. "Silver", "Gold", "Platinum", "Diamond"
+  validityDays           Int
+  contactReveals         Int
+  ticketQuota            Int             @default(5)
+  emiEligible            Boolean         @default(false)
+  cost                   Float
+  servicesProvided       String
+  featuredProfileEligible Boolean        @default(false)
+  isActive               Boolean         @default(true)
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  memberProfiles         MemberProfile[]
+  invoices               MemberInvoice[]
+}
+
+model MemberInterest {
+  id                String        @id @default(uuid())
+  senderProfileId   String
+  sender            MemberProfile @relation("SentInterests", fields: [senderProfileId], references: [id], onDelete: Cascade)
+  receiverProfileId String
+  receiver          MemberProfile @relation("ReceivedInterests", fields: [receiverProfileId], references: [id], onDelete: Cascade)
+  status            String        @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  actionDate        DateTime?
+  actionById        String?       // Member or Staff ID
+  actionByType      String?       // "MEMBER" or "STAFF"
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([senderProfileId, receiverProfileId])
+  @@index([senderProfileId])
+  @@index([receiverProfileId])
+  @@index([status])
+}
+
+model ContactRevealRequest {
+  id                String        @id @default(uuid())
+  senderProfileId   String
+  sender            MemberProfile @relation("SentRevealRequests", fields: [senderProfileId], references: [id], onDelete: Cascade)
+  receiverProfileId String
+  receiver          MemberProfile @relation("ReceivedRevealRequests", fields: [receiverProfileId], references: [id], onDelete: Cascade)
+  revealType        String        // "AUTO", "SCHEDULED_24H", "SCHEDULED_72H", "REQUEST_ACCEPTANCE"
+  status            String        @default("PENDING") // "PENDING", "ACCEPTED", "REJECTED", "BLOCKED", "REVEALED"
+  unlocksAt         DateTime?
+  revealedAt        DateTime?
+  actionDate        DateTime?
+  actionById        String?       // Member ID or Staff ID
+  actionByType      String?       // "MEMBER" or "STAFF"
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([senderProfileId, receiverProfileId])
+  @@index([senderProfileId])
+  @@index([receiverProfileId])
+  @@index([status])
+}
+
+model MemberShortlist {
+  id              String        @id @default(uuid())
+  memberProfileId String
+  memberProfile   MemberProfile @relation("MemberShortlists", fields: [memberProfileId], references: [id], onDelete: Cascade)
+  targetProfileId String
+  createdAt       DateTime      @default(now())
+
+  @@unique([memberProfileId, targetProfileId])
+  @@index([memberProfileId])
+}
+
+model MemberBlocklist {
+  id              String        @id @default(uuid())
+  memberProfileId String
+  memberProfile   MemberProfile @relation("MemberBlocklists", fields: [memberProfileId], references: [id], onDelete: Cascade)
+  targetProfileId String
+  createdAt       DateTime      @default(now())
+
+  @@unique([memberProfileId, targetProfileId])
+  @@index([memberProfileId])
+}
+
+model ProfileViewLog {
+  id              String        @id @default(uuid())
+  viewerProfileId String
+  viewer          MemberProfile @relation("ViewedProfiles", fields: [viewerProfileId], references: [id], onDelete: Cascade)
+  viewedProfileId String
+  viewed          MemberProfile @relation("ProfileViewers", fields: [viewedProfileId], references: [id], onDelete: Cascade)
+  viewedAt        DateTime      @default(now())
+
+  @@index([viewerProfileId])
+  @@index([viewedProfileId])
+}
+
+model MemberInvoice {
+  id              String        @id @default(uuid())
+  invoiceNumber   String        @unique
+  memberProfileId String
+  memberProfile   MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  packageId       String
+  package         PackageMaster @relation(fields: [packageId], references: [id])
+  amount          Float
+  paymentMode     String        // "ONLINE", "UPI", "CARD", "EMI", "CASH"
+  status          String        @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  @@index([memberProfileId])
+  @@index([status])
+}
+

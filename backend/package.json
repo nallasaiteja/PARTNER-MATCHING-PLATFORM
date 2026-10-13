@@ -15,7 +15,8 @@
     "test:community-master": "ts-node src/tests/community-master.test.ts",
     "test:locations": "ts-node src/tests/location-address.test.ts",
     "test:lifestyle": "ts-node src/tests/lifestyle-profile.test.ts",
-    "test:rbac": "ts-node src/tests/rbac.test.ts"
+    "test:rbac": "ts-node src/tests/rbac.test.ts",
+    "test:members": "ts-node src/tests/section4-members.test.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -25,6 +26,7 @@
     "@nestjs/passport": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
     "@prisma/client": "^5.0.0",
+    "@supabase/supabase-js": "^2.117.3",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",

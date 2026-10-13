@@ -6,11 +6,12 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SupabaseService } from '../../supabase/supabase.service';
 import { StaffStatus, LOGIN_BLOCKED_STATUSES } from '../constants/roles.constants';
 
 /**
  * JwtAuthGuard
- * - Validates JWT token from Authorization header
+ * - Validates JWT token from Authorization header (supports both Supabase Auth & platform tokens)
  * - Rejects BLOCKED and TERMINATED staff at login boundary
  * - Attaches full user object to request
  */
@@ -19,6 +20,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -35,13 +37,23 @@ export class JwtAuthGuard implements CanActivate {
         secret: process.env.JWT_SECRET,
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired token');
+      // If local JWT verification fails, verify with Supabase Auth
+      if (this.supabaseService.isConfigured()) {
+        const { user: supaUser } = await this.supabaseService.getUser(token);
+        if (supaUser) {
+          payload = { sub: supaUser.id };
+        }
+      }
+      if (!payload) {
+        throw new UnauthorizedException('Invalid or expired token');
+      }
     }
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: { organization: true },
     });
+
 
     if (!user) {
       throw new UnauthorizedException('User not found');

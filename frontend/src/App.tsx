@@ -9,6 +9,14 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import { Role } from './constants/roles';
 
+import { MemberDashboardPage } from './pages/MemberDashboardPage';
+import { VerifiedViewPage } from './pages/VerifiedViewPage';
+import { MatchedViewPage } from './pages/MatchedViewPage';
+import { InterestsPage } from './pages/InterestsPage';
+import { UpgradePlanPage } from './pages/UpgradePlanPage';
+import { AccountSettingsPage } from './pages/AccountSettingsPage';
+import { MemberActivityPage } from './pages/MemberActivityPage';
+
 function App() {
   return (
     <AuthProvider>
@@ -19,16 +27,23 @@ function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/profile-form/:profileId?" element={<MemberProfileFormPage />} />
         
-        {/* Member Routes Shell */}
+        {/* Member Routes Shell (Section 4) */}
         <Route path="/member" element={
           <ProtectedRoute allowedRoles={[Role.MEMBER]}>
             <DashboardLayout role="Member" />
           </ProtectedRoute>
         }>
-          <Route path="dashboard" element={<div>Member Dashboard Content</div>} />
+          <Route path="dashboard" element={<MemberDashboardPage />} />
           <Route path="profile" element={<MemberProfileFormPage />} />
           <Route path="profile/:profileId" element={<MemberProfileFormPage />} />
-          <Route path="matches" element={<div>Matches (Coming Soon)</div>} />
+          <Route path="matches/verified" element={<VerifiedViewPage />} />
+          <Route path="matches/matched" element={<MatchedViewPage />} />
+          <Route path="interests" element={<InterestsPage />} />
+          <Route path="upgrade" element={<UpgradePlanPage />} />
+          <Route path="settings" element={<AccountSettingsPage />} />
+          <Route path="activity" element={<MemberActivityPage initialTab="views" />} />
+          <Route path="contacts" element={<MemberActivityPage initialTab="contacts" />} />
+          <Route path="shortlist" element={<MemberActivityPage initialTab="shortlist" />} />
         </Route>
 
         {/* Admin / HQ Shell */}
