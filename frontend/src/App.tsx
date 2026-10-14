@@ -4,6 +4,16 @@ import DashboardLayout from './layouts/DashboardLayout';
 import { AuthProvider } from './auth/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { StaffManagementPage } from './pages/StaffManagementPage';
+import { MemberManagementPage } from './pages/MemberManagementPage';
+import { MobileRequestsPage } from './pages/MobileRequestsPage';
+import { AlertsModulePage } from './pages/AlertsModulePage';
+import { MasterDataPage } from './pages/MasterDataPage';
+import { AdminPackagesPage } from './pages/AdminPackagesPage';
+import { AdvancedSearchPage } from './pages/AdvancedSearchPage';
+import { FeaturedProfilesPage } from './pages/FeaturedProfilesPage';
+import { AdvertisementsPage } from './pages/AdvertisementsPage';
+import { WeddingServicesPage } from './pages/WeddingServicesPage';
 import MemberProfileFormPage from './pages/MemberProfileFormPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -55,7 +65,16 @@ function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="profiles/new" element={<MemberProfileFormPage />} />
           <Route path="profiles/:profileId" element={<MemberProfileFormPage />} />
-          <Route path="staff" element={<div>Staff Management</div>} />
+          <Route path="staff" element={<StaffManagementPage />} />
+          <Route path="members" element={<MemberManagementPage />} />
+          <Route path="mobile-requests" element={<MobileRequestsPage />} />
+          <Route path="alerts" element={<AlertsModulePage />} />
+          <Route path="settings" element={<MasterDataPage />} />
+          <Route path="packages" element={<AdminPackagesPage />} />
+          <Route path="search" element={<AdvancedSearchPage />} />
+          <Route path="featured" element={<FeaturedProfilesPage />} />
+          <Route path="ads" element={<AdvertisementsPage />} />
+          <Route path="wedding-services" element={<WeddingServicesPage />} />
         </Route>
 
         {/* Branch Shells */}

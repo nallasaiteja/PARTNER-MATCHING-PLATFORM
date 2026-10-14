@@ -66,9 +66,66 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ role }) => {
               </>
             ) : (
               <>
-                <li><Link to="dashboard">Dashboard</Link></li>
-                <li><Link to="profiles/new">Member Data Entry (5-Step)</Link></li>
-                <li><Link to="#">Settings</Link></li>
+                <li>
+                  <Link to="/admin/dashboard" className={location.pathname === '/admin/dashboard' ? 'active-nav-link' : ''}>
+                    📊 Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/staff" className={location.pathname.startsWith('/admin/staff') ? 'active-nav-link' : ''}>
+                    👥 Staff Management
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/members" className={location.pathname.startsWith('/admin/members') ? 'active-nav-link' : ''}>
+                    💍 Member Management
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/mobile-requests" className={location.pathname === '/admin/mobile-requests' ? 'active-nav-link' : ''}>
+                    📱 Mobile Requests
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/alerts" className={location.pathname === '/admin/alerts' ? 'active-nav-link' : ''}>
+                    🔔 Alerts & Reminders
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/settings" className={location.pathname === '/admin/settings' ? 'active-nav-link' : ''}>
+                    ⚙️ Master Data & Settings
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/packages" className={location.pathname === '/admin/packages' ? 'active-nav-link' : ''}>
+                    📦 Packages Module
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/search" className={location.pathname === '/admin/search' ? 'active-nav-link' : ''}>
+                    🔍 Advanced Search
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/featured" className={location.pathname === '/admin/featured' ? 'active-nav-link' : ''}>
+                    ⭐ Featured Profiles
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/ads" className={location.pathname === '/admin/ads' ? 'active-nav-link' : ''}>
+                    📢 Advertisements
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/wedding-services" className={location.pathname === '/admin/wedding-services' ? 'active-nav-link' : ''}>
+                    💒 Wedding Services
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/profiles/new" className={location.pathname === '/admin/profiles/new' ? 'active-nav-link' : ''}>
+                    📝 Member Data Entry
+                  </Link>
+                </li>
                 <li>
                   <button onClick={logout} className="logout-sidebar-btn">
                     🚪 Logout

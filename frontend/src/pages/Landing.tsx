@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MemberAuthModal } from './MemberAuthModal';
+import { useAuth } from '../auth/AuthProvider';
+import { loginWithCredentials } from '../services/memberApi';
 import './Landing.css';
 
 const LandingPage: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [quickLoginLoading, setQuickLoginLoading] = useState(false);
+  const { setSession } = useAuth();
+  const navigate = useNavigate();
 
   const openAuth = (tab: 'login' | 'register') => {
     setAuthModalTab(tab);
@@ -60,25 +65,81 @@ const LandingPage: React.FC = () => {
               Direct Form Architecture Preview
             </button>
 
-            <button onClick={() => {
-              localStorage.setItem('user', JSON.stringify({ id: 'user-super-admin', role: 'SUPER_ADMIN', status: 'ACTIVE', organizationId: 'org-hq' }));
-              window.location.href = '/admin/dashboard';
-            }} className="btn-secondary">Login as Super Admin</button>
+            <button
+              onClick={async () => {
+                setQuickLoginLoading(true);
+                try {
+                  const res = await loginWithCredentials({ identifier: '9000000001', password: 'Test@1234' });
+                  setSession(res.accessToken, res.user, res.memberProfile);
+                  navigate('/admin/dashboard');
+                } catch (e: any) {
+                  alert(e.message || 'Login failed. Make sure backend is running.');
+                } finally {
+                  setQuickLoginLoading(false);
+                }
+              }}
+              disabled={quickLoginLoading}
+              className="btn-secondary"
+            >
+              {quickLoginLoading ? 'Logging in...' : 'Login as Super Admin'}
+            </button>
 
-            <button onClick={() => {
-              localStorage.setItem('user', JSON.stringify({ id: 'user-branch-a-manager', role: 'BRANCH_MANAGER', status: 'ACTIVE', organizationId: 'org-branch-a' }));
-              window.location.href = '/branch/dashboard';
-            }} className="btn-secondary">Login as Branch Manager</button>
+            <button
+              onClick={async () => {
+                setQuickLoginLoading(true);
+                try {
+                  const res = await loginWithCredentials({ identifier: '9000000004', password: 'Test@1234' });
+                  setSession(res.accessToken, res.user, res.memberProfile);
+                  navigate('/branch/dashboard');
+                } catch (e: any) {
+                  alert(e.message || 'Login failed. Make sure backend is running.');
+                } finally {
+                  setQuickLoginLoading(false);
+                }
+              }}
+              disabled={quickLoginLoading}
+              className="btn-secondary"
+            >
+              Login as Branch Manager
+            </button>
             
-            <button onClick={() => {
-              localStorage.setItem('user', JSON.stringify({ id: 'user-suspended', role: 'BRANCH_STAFF', status: 'SUSPENDED', organizationId: 'org-branch-a' }));
-              window.location.href = '/branch/dashboard';
-            }} className="btn-secondary">Login as Suspended Staff</button>
+            <button
+              onClick={async () => {
+                setQuickLoginLoading(true);
+                try {
+                  const res = await loginWithCredentials({ identifier: '9000000011', password: 'Test@1234' });
+                  setSession(res.accessToken, res.user, res.memberProfile);
+                  navigate('/branch/dashboard');
+                } catch (e: any) {
+                  alert(e.message || 'Login failed');
+                } finally {
+                  setQuickLoginLoading(false);
+                }
+              }}
+              disabled={quickLoginLoading}
+              className="btn-secondary"
+            >
+              Login as Suspended Staff
+            </button>
 
-            <button onClick={() => {
-              localStorage.setItem('user', JSON.stringify({ id: 'user-blocked', role: 'BRANCH_STAFF', status: 'BLOCKED', organizationId: 'org-branch-a' }));
-              window.location.href = '/branch/dashboard'; // Should get blocked by ProtectedRoute
-            }} className="btn-secondary">Login as Blocked Staff</button>
+            <button
+              onClick={async () => {
+                setQuickLoginLoading(true);
+                try {
+                  const res = await loginWithCredentials({ identifier: '9000000012', password: 'Test@1234' });
+                  setSession(res.accessToken, res.user, res.memberProfile);
+                  navigate('/branch/dashboard');
+                } catch (e: any) {
+                  alert(e.message || 'Login blocked as expected');
+                } finally {
+                  setQuickLoginLoading(false);
+                }
+              }}
+              disabled={quickLoginLoading}
+              className="btn-secondary"
+            >
+              Login as Blocked Staff
+            </button>
           </div>
         </section>
 

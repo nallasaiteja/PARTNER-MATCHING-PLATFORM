@@ -3,16 +3,22 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Req,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { StaffService } from './staff.service';
-import { CreateStaffDto, UpdateStaffDto } from './dto/staff.dto';
+import {
+  CreateStaffDto,
+  UpdateStaffDto,
+  RequestStaffOtpDto,
+  AddStaffSalaryDto,
+  SetStaffAccessRuleDto,
+} from './dto/staff.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -26,13 +32,27 @@ export class StaffController {
   constructor(private readonly staffService: StaffService) {}
 
   /**
+   * POST /api/v1/staff/request-otp
+   * Request OTP for staff creation verification
+   */
+  @Post('request-otp')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.FRANCHISE_MANAGER)
+  @HttpCode(HttpStatus.OK)
+  requestStaffOtp(@Body() dto: RequestStaffOtpDto) {
+    return this.staffService.requestStaffOtp(dto.mobile);
+  }
+
+  /**
    * GET /api/v1/staff
-   * List staff (SUPER_ADMIN, ADMIN: all; FRANCHISE_MANAGER: own franchise only)
+   * List staff (with optional ?status=ACTIVE|BLOCKED|SUSPENDED|TERMINATED)
    */
   @Get()
   @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.FRANCHISE_MANAGER)
-  listStaff(@CurrentUser() user: any) {
-    return this.staffService.listStaff(user);
+  listStaff(
+    @CurrentUser() user: any,
+    @Query('status') status?: string,
+  ) {
+    return this.staffService.listStaff(user, status);
   }
 
   /**
@@ -45,8 +65,59 @@ export class StaffController {
   }
 
   /**
+   * GET /api/v1/staff/:id/activity
+   * View staff activity history (profiles created, edited, visited, blocked, payments processed)
+   */
+  @Get(':id/activity')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.FRANCHISE_MANAGER)
+  getStaffActivity(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.staffService.getStaffActivityHistory(user, id);
+  }
+
+  /**
+   * GET /api/v1/staff/:id/salary
+   * View month-wise and package-wise salary/payment history
+   */
+  @Get(':id/salary')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN, Role.FRANCHISE_MANAGER)
+  getStaffSalary(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.staffService.getStaffSalaryHistory(user, id);
+  }
+
+  /**
+   * POST /api/v1/staff/:id/salary
+   * Record salary / commission payment
+   */
+  @Post(':id/salary')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  addStaffSalary(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: AddStaffSalaryDto,
+  ) {
+    return this.staffService.addStaffSalary(user, id, dto);
+  }
+
+  /**
+   * POST /api/v1/staff/:id/access-rules
+   * Configure staff profile access permissions by ID range, caste, gender, custom series
+   */
+  @Post(':id/access-rules')
+  @Roles(Role.SUPER_ADMIN, Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  setStaffAccessRule(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: SetStaffAccessRuleDto,
+  ) {
+    return this.staffService.setStaffAccessRule(user, id, dto);
+  }
+
+  /**
    * POST /api/v1/staff
    * Create staff - only SUPER_ADMIN, ADMIN, FRANCHISE_MANAGER (own franchise)
+   * Enforces Aadhaar upload & OTP verification
    */
   @Post()
   @RequirePermission(Permission.STAFF_CREATE)
@@ -60,7 +131,7 @@ export class StaffController {
 
   /**
    * PATCH /api/v1/staff/:id
-   * Update staff - only SUPER_ADMIN, ADMIN, FRANCHISE_MANAGER (own franchise)
+   * Update staff
    */
   @Patch(':id')
   @RequirePermission(Permission.STAFF_EDIT)

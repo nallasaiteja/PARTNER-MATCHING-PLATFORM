@@ -11,6 +11,7 @@ import { LocationsModule } from './locations/locations.module';
 import { CommunityModule } from './community/community.module';
 import { MembersModule } from './members/members.module';
 import { SupabaseModule } from './supabase/supabase.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SupabaseModule } from './supabase/supabase.module';
     LocationsModule,
     CommunityModule,
     MembersModule,
+    AdminModule,
   ],
 })
 

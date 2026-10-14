@@ -152,6 +152,13 @@ model User {
   // Permission overrides (e.g., FREE_TEAM granted access to paid profiles)
   permissionOverrides Json?
 
+  // Section 5: Staff Identification & Verification
+  employeeId     String?       @unique
+  fullName       String?
+  aadhaarUrl     String?
+  aadhaarVerified Boolean      @default(false)
+  joiningDate    DateTime      @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -160,10 +167,15 @@ model User {
   blockedMembers MemberProfile[]   @relation("BlockedByStaff")
   createdProfiles MemberProfile[]  @relation("CreatedByStaff")
   assignedProfiles MemberProfile[] @relation("AssignedProfiles")
+  staffPayments   StaffPaymentHistory[]
+  staffAccessRules StaffAccessRule[]
+  internalNotes   MemberInternalNote[]
+  reviewedUpdateRequests ProfileUpdateRequest[]
 
   @@index([role])
   @@index([status])
   @@index([organizationId])
+  @@index([employeeId])
 }
 
 // ---------------------------------------------------------
@@ -243,6 +255,13 @@ model MemberProfile {
   currentPackageId       String?
   currentPackage         PackageMaster? @relation(fields: [currentPackageId], references: [id])
 
+  // Section 5: Profile Closure & Featured Profiles
+  closureRequested       Boolean   @default(false)
+  closureReason          String?
+  isFeatured             Boolean   @default(false)
+  featuredUntil          DateTime?
+  featuredAt             DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -257,12 +276,17 @@ model MemberProfile {
   viewedProfiles         ProfileViewLog[]        @relation("ViewedProfiles")
   profileViewers         ProfileViewLog[]        @relation("ProfileViewers")
   invoices               MemberInvoice[]
+  internalNotes          MemberInternalNote[]
+  updateRequests         ProfileUpdateRequest[]
+  paymentAlerts          PaymentAlert[]
+  featuredRecords        FeaturedProfileRecord[]
 
   @@index([ownerOrgId])
   @@index([ownershipType])
   @@index([createdByStaffId])
   @@index([packageType])
   @@index([isBlocked])
+  @@index([isFeatured])
   @@index([memberId])
 }
 
@@ -480,5 +504,178 @@ model MemberInvoice {
 
   @@index([memberProfileId])
   @@index([status])
+}
+
+// ---------------------------------------------------------
+// SECTION 5: HQ ADMIN PANEL MODELS
+// ---------------------------------------------------------
+
+model StaffPaymentHistory {
+  id              String   @id @default(uuid())
+  staffId         String
+  staff           User     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  month           String   // e.g. "2026-10"
+  salaryAmount    Float
+  incentiveAmount Float    @default(0)
+  packageName     String?  // package facilitated if commission
+  status          String   @default("PAID") // "PAID", "PENDING"
+  paymentDate     DateTime @default(now())
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  @@index([staffId])
+  @@index([month])
+}
+
+model StaffAccessRule {
+  id             String   @id @default(uuid())
+  staffId        String
+  staff          User     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  idRangeStart   String?  // e.g. "M20260001"
+  idRangeEnd     String?  // e.g. "M20261000"
+  allowedCastes  Json?    // ["Brahmin", "Reddy"]
+  allowedGenders Json?    // ["Male", "Female"]
+  customSeries   Json?    // ["SERIES-A", "SERIES-B"]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([staffId])
+}
+
+model ProfileUpdateRequest {
+  id              String        @id @default(uuid())
+  memberProfileId String
+  memberProfile   MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  requestedData   Json
+  status          String        @default("PENDING") // "PENDING", "APPROVED", "DISMISSED"
+  dismissReason   String?
+  reviewedById    String?
+  reviewedBy      User?         @relation(fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([memberProfileId])
+  @@index([status])
+}
+
+model MemberInternalNote {
+  id              String        @id @default(uuid())
+  memberProfileId String
+  memberProfile   MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  staffId         String
+  staff           User          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  note            String
+  createdAt       DateTime      @default(now())
+
+  @@index([memberProfileId])
+  @@index([staffId])
+}
+
+model PaymentAlert {
+  id              String        @id @default(uuid())
+  memberProfileId String
+  memberProfile   MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  packageId       String?
+  alertDate       DateTime
+  alertType       String        // "PAYMENT", "VISIT", "PACKAGE_FOLLOWUP"
+  note            String?
+  createdById     String
+  isResolved      Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+
+  @@index([memberProfileId])
+  @@index([alertDate])
+  @@index([isResolved])
+}
+
+model SmsCampaign {
+  id                  String   @id @default(uuid())
+  branchOrgId         String?
+  title               String
+  message             String
+  targetIdRangeStart  String?
+  targetIdRangeEnd    String?
+  recipientCount      Int      @default(0)
+  createdById         String
+  status              String   @default("SENT")
+  createdAt           DateTime @default(now())
+
+  @@index([branchOrgId])
+  @@index([createdAt])
+}
+
+model MasterData {
+  id          String   @id @default(uuid())
+  category    String   // "LOCATION", "COMMUNITY", "OCCUPATION", "EDUCATION", "LANGUAGE", "FINANCE", "PLATFORM", "TERMS"
+  code        String
+  label       String
+  parentCode  String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([category, code])
+  @@index([category, isActive])
+}
+
+model Advertisement {
+  id          String   @id @default(uuid())
+  slot        String   // "HOME_BANNER", "BROWSE_SIDEBAR", "AFTER_LOGIN_BANNER", "MOBILE_BANNER"
+  title       String
+  imageUrl    String
+  targetUrl   String?
+  startDate   DateTime
+  endDate     DateTime
+  visibility  String   @default("ALL") // "ALL", "FREE_ONLY", "PAID_ONLY"
+  status      String   @default("ACTIVE") // "ACTIVE", "SCHEDULED", "EXPIRED"
+  isActive    Boolean  @default(true)
+  partnerName String?
+  feeAmount   Float    @default(0)
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slot, isActive])
+  @@index([status])
+}
+
+model WeddingService {
+  id           String   @id @default(uuid())
+  businessName String
+  category     String   // "PHOTOGRAPHY", "HALLS_VENUES", "CATERING", "BRIDAL_MAKEUP", "PLANNERS", "INVITATION_CARDS", "JEWELLERY"
+  city         String
+  phone        String
+  whatsapp     String
+  website      String?
+  description  String
+  photos       Json?    // array of URLs up to 5
+  isFeatured   Boolean  @default(false)
+  feeAmount    Float    @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category, isActive])
+  @@index([isFeatured])
+}
+
+model FeaturedProfileRecord {
+  id              String        @id @default(uuid())
+  memberProfileId String
+  memberProfile   MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
+  assignedById    String
+  startDate       DateTime      @default(now())
+  endDate         DateTime
+  isActive        Boolean       @default(true)
+  notes           String?
+  createdAt       DateTime      @default(now())
+
+  @@index([memberProfileId])
+  @@index([isActive])
+  @@index([startDate, endDate])
 }
 

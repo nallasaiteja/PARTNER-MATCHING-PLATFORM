@@ -1,0 +1,34 @@
+/* ==========================================================================
+   ALERTS MODULE STYLES (SECTION 5.5)
+   ========================================================================== */
+
+.alerts-root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  color: #1e293b;
+  padding-bottom: 40px;
+}
+
+.alerts-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.reminder-item-card {
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 14px 18px;
+  background: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reminder-item-card.resolved {
+  border-left-color: #10b981;
+  background: #f8fafc;
+  opacity: 0.8;
+}

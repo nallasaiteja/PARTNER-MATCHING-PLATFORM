@@ -1,0 +1,37 @@
+/* ==========================================================================
+   MOBILE REQUESTS STYLES (SECTION 5.4)
+   ========================================================================== */
+
+.mobile-req-root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  color: #1e293b;
+  padding-bottom: 40px;
+}
+
+.req-party-box {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.req-party-id {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.req-party-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.req-party-quota {
+  font-size: 0.72rem;
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 1px 6px;
+  display: inline-block;
+  margin-top: 2px;
+  color: #475569;
+}
