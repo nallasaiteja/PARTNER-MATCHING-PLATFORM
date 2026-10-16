@@ -1,14 +1,11 @@
-const API_BASE = '/api/v1/auth';
+import { API_BASE_URL, getAuthorizationHeader } from './apiConfig';
 
-function authorizationHeaders(): HeadersInit {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+const API_BASE = `${API_BASE_URL}/auth`;
 
 async function post(path: string, data?: Record<string, string>) {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authorizationHeaders() },
+    headers: { 'Content-Type': 'application/json', ...getAuthorizationHeader() },
     body: data ? JSON.stringify(data) : undefined,
   });
   const result = await response.json().catch(() => ({}));
@@ -26,7 +23,7 @@ export const resetPassword = (token: string, newPassword: string) => post('/pass
 export async function changePassword(currentPassword: string, newPassword: string) {
   const response = await fetch(`${API_BASE}/password`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...authorizationHeaders() },
+    headers: { 'Content-Type': 'application/json', ...getAuthorizationHeader() },
     body: JSON.stringify({ currentPassword, newPassword }),
   });
   const result = await response.json().catch(() => ({}));

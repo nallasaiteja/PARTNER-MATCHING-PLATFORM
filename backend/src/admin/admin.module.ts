@@ -21,9 +21,11 @@ import { AdvertisementsController } from './advertisements.controller';
 import { AdvertisementsService } from './advertisements.service';
 import { WeddingServicesController } from './wedding-services.controller';
 import { WeddingServicesService } from './wedding-services.service';
+import { AuditLogsController } from './audit-logs.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, CommonModule],
+  imports: [PrismaModule, CommonModule, NotificationsModule],
   controllers: [
     AdminDashboardController,
     AdminMembersController,
@@ -35,6 +37,7 @@ import { WeddingServicesService } from './wedding-services.service';
     FeaturedProfilesController,
     AdvertisementsController,
     WeddingServicesController,
+    AuditLogsController,
   ],
   providers: [
     AdminDashboardService,

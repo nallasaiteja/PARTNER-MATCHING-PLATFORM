@@ -30,6 +30,9 @@ export function validateAndSanitizeStep5(data: Record<string, any>) {
   }
 
   const sanitized = { ...data };
+  if (sanitized.verificationStatus && sanitized.verificationStatus !== 'PENDING_VERIFICATION' && sanitized.verificationStatus !== 'DRAFT') {
+    delete sanitized.verificationStatus;
+  }
   for (const field of [
     'mobileVerified',
     'emailVerified',

@@ -1,0 +1,497 @@
+/* Admin Careers Management Styles */
+
+.admin-careers-page {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.admin-header-row {
+  margin-bottom: 1.5rem;
+}
+
+.admin-header-row h1 {
+  font-size: 1.8rem;
+  color: #1a202c;
+  margin-bottom: 0.3rem;
+  font-weight: 700;
+}
+
+.admin-header-row .subtitle {
+  color: #718096;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Tabs */
+.tabs-header {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #718096;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  background: #edf2f7;
+  color: #2d3748;
+}
+
+.tab-btn.active {
+  background: #ebf8ff;
+  color: #2b6cb0;
+}
+
+/* Search Card */
+.admin-search-card {
+  background: #ffffff;
+  padding: 0.8rem 1.2rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  margin-bottom: 1.5rem;
+}
+
+.career-search-form {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.career-search-form input {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.btn-search {
+  background: #2b6cb0;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-clear {
+  background: #edf2f7;
+  color: #4a5568;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Table Card */
+.admin-table-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.admin-table th {
+  background: #f7fafc;
+  color: #4a5568;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.admin-table td {
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 0.92rem;
+  vertical-align: middle;
+}
+
+.app-no {
+  color: #2b6cb0;
+  font-family: monospace;
+  font-size: 0.95rem;
+}
+
+.applicant-name-cell strong {
+  display: block;
+  color: #1a202c;
+}
+
+.id-proof-badge {
+  display: inline-block;
+  background: #edf2f7;
+  color: #4a5568;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+}
+
+.contact-cell span {
+  display: block;
+  font-size: 0.88rem;
+  color: #2d3748;
+}
+
+.contact-cell small {
+  color: #718096;
+  font-size: 0.78rem;
+}
+
+.time-badge {
+  display: inline-block;
+  background: #f7fafc;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.3rem 0.7rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pill-pending {
+  background: #fefcbf;
+  color: #744210;
+}
+
+.pill-registered_as_staff {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.pill-blocked {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.btn-view {
+  background: #ebf8ff;
+  color: #2b6cb0;
+  border: 1px solid #bee3f8;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-register {
+  background: #f0fff4;
+  color: #276749;
+  border: 1px solid #c6f6d5;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-block {
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #fed7d7;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.table-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1rem;
+  background: #f7fafc;
+}
+
+.table-pagination button {
+  background: #fff;
+  border: 1px solid #cbd5e0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.table-pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: #ffffff;
+  width: 100%;
+  max-width: 580px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.modal-content.large {
+  max-width: 850px;
+}
+
+.modal-header {
+  padding: 1.2rem 1.6rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+  color: #1a202c;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  color: #718096;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-scroll-body {
+  padding: 1.6rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+.modal-footer {
+  padding: 1rem 1.6rem;
+  border-top: 1px solid #edf2f7;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.8rem;
+  background: #f7fafc;
+}
+
+.status-banner {
+  padding: 0.9rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.banner-pending {
+  background: #fefcbf;
+  color: #744210;
+}
+
+.banner-registered_as_staff {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.banner-blocked {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.detail-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.2rem;
+  background: #fcfcfd;
+}
+
+.detail-section h3 {
+  font-size: 1.05rem;
+  color: #2b6cb0;
+  margin-bottom: 0.8rem;
+  border-bottom: 1px solid #edf2f7;
+  padding-bottom: 0.4rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.detail-grid label {
+  display: block;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: #718096;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.detail-grid p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #2d3748;
+}
+
+.grid-full {
+  grid-column: 1 / -1;
+}
+
+.doc-link {
+  display: inline-block;
+  background: #ebf8ff;
+  color: #2b6cb0;
+  padding: 0.35rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.modal-edu-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.modal-edu-table th {
+  background: #edf2f7;
+  padding: 0.6rem;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.modal-edu-table td {
+  padding: 0.6rem;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 0.88rem;
+}
+
+.modal-photos-grid {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.modal-photos-grid img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Register Success Card */
+.register-success-card {
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.register-success-card .success-icon {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.credentials-box {
+  background: #f7fafc;
+  border: 1px solid #cbd5e0;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: left;
+  margin: 1.2rem auto;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.credentials-box code {
+  background: #edf2f7;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  color: #c53030;
+}
+
+.btn-secondary {
+  background: #edf2f7;
+  color: #4a5568;
+  border: none;
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: #2b6cb0;
+  color: #fff;
+  border: none;
+  padding: 0.55rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-danger {
+  background: #e53e3e;
+  color: #fff;
+  border: none;
+  padding: 0.55rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}

@@ -1,0 +1,86 @@
+/* ==============================================================================
+   PARTNER MATCHING PLATFORM — MOBILE BOTTOM NAVIGATION
+   Fixed native tab bar for mobile viewports & Capacitor mobile application
+   ============================================================================== */
+
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(25, 28, 36, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+  z-index: 1040;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
+}
+
+.mobile-bottom-nav-inner {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 56px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.mobile-nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  flex: 1;
+  padding: 6px 0;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-icon {
+  font-size: 1.25rem;
+  line-height: 1.2;
+  transition: transform 0.15s ease;
+}
+
+.mobile-nav-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-top: 2px;
+  letter-spacing: -0.2px;
+}
+
+.mobile-nav-tab:active .mobile-nav-icon {
+  transform: scale(0.9);
+}
+
+.mobile-nav-tab-active {
+  color: #d4af37;
+  font-weight: 700;
+}
+
+.mobile-nav-tab-active .mobile-nav-icon {
+  transform: translateY(-1px);
+}
+
+.mobile-nav-tab-active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 24px;
+  height: 3px;
+  background: linear-gradient(90deg, #d4af37, #f59e0b);
+  border-radius: 0 0 3px 3px;
+  box-shadow: 0 2px 6px rgba(212, 175, 55, 0.5);
+}
+
+/* ─── Show on screens <= 768px ─── */
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: block;
+  }
+}

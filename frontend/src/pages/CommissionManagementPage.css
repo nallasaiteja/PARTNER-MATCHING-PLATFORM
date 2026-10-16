@@ -1,0 +1,19 @@
+/* ==========================================================================
+   COMMISSION MANAGEMENT STYLES (SECTION 6.7)
+   ========================================================================== */
+
+.commission-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: #1e293b;
+  padding-bottom: 50px;
+}
+
+.config-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}

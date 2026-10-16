@@ -96,6 +96,13 @@ export class RegisterMemberDto {
 
   @IsBoolean()
   termsAccepted: boolean;
+
+  @IsOptional()
+  @IsString()
+  registrationSource?: string;
+
+  @IsOptional()
+  attributionData?: Record<string, any>;
 }
 
 export class RequestLoginOtpDto {

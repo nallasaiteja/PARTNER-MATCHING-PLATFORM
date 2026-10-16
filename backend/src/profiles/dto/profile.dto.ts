@@ -477,6 +477,10 @@ export class BlockProfileDto {
 export class VerifyIdProofDto {
   @IsBoolean()
   verified: boolean;
+
+  @IsString()
+  @IsOptional()
+  rejectionReason?: string;
 }
 
 export class ContactRevealPackagesDto {

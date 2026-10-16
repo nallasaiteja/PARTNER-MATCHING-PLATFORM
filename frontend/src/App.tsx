@@ -1,5 +1,8 @@
-import { Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import { initializeNativeApp } from './services/nativeService';
 import LandingPage from './pages/Landing';
+import LoginPage from './pages/LoginPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import { AuthProvider } from './auth/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -26,13 +29,52 @@ import { InterestsPage } from './pages/InterestsPage';
 import { UpgradePlanPage } from './pages/UpgradePlanPage';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { MemberActivityPage } from './pages/MemberActivityPage';
+import { InvoiceManagementPage } from './pages/InvoiceManagementPage';
+import { FranchiseWalletPage } from './pages/FranchiseWalletPage';
+import { FinancialLedgersPage } from './pages/FinancialLedgersPage';
+import { CommissionManagementPage } from './pages/CommissionManagementPage';
+import { ReportsAnalyticsPage } from './pages/ReportsAnalyticsPage';
+import { BranchManagerDashboard } from './pages/BranchManagerDashboard';
+import { AgentDashboardPage } from './pages/AgentDashboardPage';
+import { AgentProfilesPage } from './pages/AgentProfilesPage';
+import { AgentInvoicesPage } from './pages/AgentInvoicesPage';
+import { AgentCommissionPage } from './pages/AgentCommissionPage';
+import { NotificationsCenterPage } from './pages/NotificationsCenterPage';
+import { SuccessStoriesPage } from './pages/SuccessStoriesPage';
+import { AdminSuccessStoriesPage } from './pages/AdminSuccessStoriesPage';
+import { CareersPage } from './pages/CareersPage';
+import { AdminCareersPage } from './pages/AdminCareersPage';
+import { LeaveManagementPage } from './pages/LeaveManagementPage';
+import { AdminComplaintsPage } from './pages/AdminComplaintsPage';
+import { StaffSuggestionsPage } from './pages/StaffSuggestionsPage';
+import { AdminMarketingPage } from './pages/AdminMarketingPage';
 
 function App() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const cleanup = initializeNativeApp((dest) => {
+      if (typeof dest === 'number') {
+        navigate(dest);
+      } else {
+        navigate(dest);
+      }
+    });
+    return () => {
+      cleanup();
+    };
+  }, [navigate]);
+
   return (
     <AuthProvider>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<LandingPage initialOpenAuth="register" />} />
+        <Route path="/register" element={<LandingPage initialOpenAuth="register" />} />
+        <Route path="/success-stories" element={<SuccessStoriesPage />} />
+        <Route path="/careers" element={<CareersPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/profile-form/:profileId?" element={<MemberProfileFormPage />} />
@@ -49,11 +91,11 @@ function App() {
           <Route path="matches/verified" element={<VerifiedViewPage />} />
           <Route path="matches/matched" element={<MatchedViewPage />} />
           <Route path="interests" element={<InterestsPage />} />
-          <Route path="upgrade" element={<UpgradePlanPage />} />
-          <Route path="settings" element={<AccountSettingsPage />} />
+          <Route path="shortlist" element={<MemberActivityPage initialTab="shortlist" />} />
           <Route path="activity" element={<MemberActivityPage initialTab="views" />} />
           <Route path="contacts" element={<MemberActivityPage initialTab="contacts" />} />
-          <Route path="shortlist" element={<MemberActivityPage initialTab="shortlist" />} />
+          <Route path="upgrade" element={<UpgradePlanPage />} />
+          <Route path="settings" element={<AccountSettingsPage />} />
         </Route>
 
         {/* Admin / HQ Shell */}
@@ -63,38 +105,78 @@ function App() {
           </ProtectedRoute>
         }>
           <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="reports" element={
+            <ProtectedRoute allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN]}>
+              <ReportsAnalyticsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="branch-view" element={<BranchManagerDashboard />} />
+          <Route path="invoices" element={<InvoiceManagementPage />} />
+          <Route path="wallets" element={<FranchiseWalletPage />} />
+          <Route path="ledgers" element={<FinancialLedgersPage />} />
+          <Route path="commissions" element={<CommissionManagementPage />} />
           <Route path="profiles/new" element={<MemberProfileFormPage />} />
           <Route path="profiles/:profileId" element={<MemberProfileFormPage />} />
           <Route path="staff" element={<StaffManagementPage />} />
           <Route path="members" element={<MemberManagementPage />} />
           <Route path="mobile-requests" element={<MobileRequestsPage />} />
           <Route path="alerts" element={<AlertsModulePage />} />
+          <Route path="notifications" element={<NotificationsCenterPage />} />
           <Route path="settings" element={<MasterDataPage />} />
           <Route path="packages" element={<AdminPackagesPage />} />
           <Route path="search" element={<AdvancedSearchPage />} />
           <Route path="featured" element={<FeaturedProfilesPage />} />
           <Route path="ads" element={<AdvertisementsPage />} />
           <Route path="wedding-services" element={<WeddingServicesPage />} />
+          <Route path="success-stories" element={<AdminSuccessStoriesPage />} />
+          <Route path="careers" element={<AdminCareersPage />} />
+          <Route path="leave-management" element={<LeaveManagementPage />} />
+          <Route path="complaints" element={<AdminComplaintsPage />} />
+          <Route path="suggestions" element={<StaffSuggestionsPage />} />
+          <Route path="marketing" element={<AdminMarketingPage />} />
         </Route>
 
-        {/* Branch Shells */}
+        {/* Branch Shells (Branch Managers and Branch Staff only) */}
         <Route path="/branch" element={
-          <ProtectedRoute allowedRoles={[Role.BRANCH_MANAGER, Role.BRANCH_STAFF, Role.BRANCH_AGENT]}>
+          <ProtectedRoute allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN, Role.BRANCH_MANAGER, Role.BRANCH_STAFF]}>
             <DashboardLayout role="Branch Staff" />
           </ProtectedRoute>
         }>
-          <Route path="dashboard" element={<div>Branch Dashboard Content</div>} />
+          <Route path="dashboard" element={<BranchManagerDashboard />} />
+          <Route path="invoices" element={<InvoiceManagementPage />} />
+          <Route path="notifications" element={<NotificationsCenterPage />} />
+          <Route path="leave-management" element={<LeaveManagementPage />} />
+          <Route path="suggestions" element={<StaffSuggestionsPage />} />
           <Route path="profiles/new" element={<MemberProfileFormPage />} />
           <Route path="profiles/:profileId" element={<MemberProfileFormPage />} />
         </Route>
 
-        {/* Franchise Shells */}
+        {/* Franchise Shells (Franchise Managers and Franchise Staff only) */}
         <Route path="/franchise" element={
-          <ProtectedRoute allowedRoles={[Role.FRANCHISE_MANAGER, Role.FRANCHISE_STAFF, Role.FRANCHISE_AGENT]}>
+          <ProtectedRoute allowedRoles={[Role.SUPER_ADMIN, Role.ADMIN, Role.FRANCHISE_MANAGER, Role.FRANCHISE_STAFF]}>
             <DashboardLayout role="Franchise Staff" />
           </ProtectedRoute>
         }>
-          <Route path="dashboard" element={<div>Franchise Dashboard Content</div>} />
+          <Route path="dashboard" element={<InvoiceManagementPage />} />
+          <Route path="invoices" element={<InvoiceManagementPage />} />
+          <Route path="wallet" element={<FranchiseWalletPage />} />
+          <Route path="commissions" element={<CommissionManagementPage />} />
+          <Route path="profiles/new" element={<MemberProfileFormPage />} />
+          <Route path="profiles/:profileId" element={<MemberProfileFormPage />} />
+        </Route>
+
+        {/* Agent Portal Shell (Section 9 - Branch Agent & Franchise Agent) */}
+        <Route path="/agent" element={
+          <ProtectedRoute allowedRoles={[Role.BRANCH_AGENT, Role.FRANCHISE_AGENT]}>
+            <DashboardLayout role="Agent" />
+          </ProtectedRoute>
+        }>
+          <Route path="dashboard" element={<AgentDashboardPage />} />
+          <Route path="profiles" element={<AgentProfilesPage />} />
+          <Route path="profiles/new" element={<MemberProfileFormPage />} />
+          <Route path="profiles/:profileId" element={<MemberProfileFormPage />} />
+          <Route path="invoices" element={<AgentInvoicesPage />} />
+          <Route path="commissions" element={<AgentCommissionPage />} />
         </Route>
       </Routes>
     </AuthProvider>

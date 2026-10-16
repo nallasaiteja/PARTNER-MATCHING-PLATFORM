@@ -547,3 +547,46 @@ export function validateStep(
       return {};
   }
 }
+
+export interface FullValidationResult {
+  isValid: boolean;
+  errorsByStep: Record<StepNumber, StepValidationErrors>;
+  failingSteps: StepNumber[];
+  firstFailingStep: StepNumber | null;
+}
+
+/**
+ * Validates all 5 steps simultaneously before final submission to verify
+ * all required profile data and documents are present.
+ */
+export function validateAllSteps(
+  formData: {
+    step1: Step1Data;
+    step2: Step2Data;
+    step3: Step3Data;
+    step4: Step4Data;
+    step5: Step5Data;
+  },
+): FullValidationResult {
+  const errorsByStep: Record<StepNumber, StepValidationErrors> = {
+    1: validateStep1(formData.step1),
+    2: validateStep2(formData.step2),
+    3: validateStep3(formData.step3),
+    4: validateStep4(formData.step4),
+    5: validateStep5(formData.step5),
+  };
+
+  const failingSteps: StepNumber[] = [];
+  for (let s = 1; s <= 5; s++) {
+    if (Object.keys(errorsByStep[s as StepNumber]).length > 0) {
+      failingSteps.push(s as StepNumber);
+    }
+  }
+
+  return {
+    isValid: failingSteps.length === 0,
+    errorsByStep,
+    failingSteps,
+    firstFailingStep: failingSteps.length > 0 ? failingSteps[0] : null,
+  };
+}

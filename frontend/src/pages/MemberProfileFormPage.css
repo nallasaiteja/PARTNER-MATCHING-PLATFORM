@@ -143,27 +143,142 @@
   transform: translateY(-1px);
 }
 
+/* ─── Validation & Error Alerts ─────────────────────────────────────────── */
+.validation-alert-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 5px solid #f59e0b;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.08);
+  animation: slideDownAlert 0.25s ease-out;
+}
+
+@keyframes slideDownAlert {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.validation-alert-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #92400e;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.validation-alert-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.validation-alert-dismiss {
+  background: transparent;
+  border: none;
+  color: #b45309;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.validation-alert-dismiss:hover {
+  background: rgba(180, 83, 9, 0.12);
+}
+
+.save-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 5px solid #ef4444;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  color: #991b1b;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Success Card */
 .profile-success-card {
   background: #ffffff;
-  border-radius: 14px;
-  padding: 40px 24px;
+  border-radius: 16px;
+  padding: 44px 28px;
   text-align: center;
-  border: 1px solid #eef0f3;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.06);
+  max-width: 680px;
+  margin: 30px auto;
+}
+
+.success-badge-tag {
+  display: inline-block;
+  background: #ecfdf5;
+  color: #059669;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #a7f3d0;
+  margin-bottom: 4px;
+}
+
+.success-meta-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 20px auto 20px auto;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  font-size: 14px;
+  color: #334155;
+}
+
+.status-pending-chip {
+  background: #fff7ed;
+  color: #c2410c;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid #ffedd5;
+  font-size: 12px;
+  display: inline-block;
 }
 
 .success-icon-badge {
-  width: 64px;
-  height: 64px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   background: #ecfdf5;
   color: #10b981;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  font-size: 34px;
   margin: 0 auto 16px auto;
+  border: 2px solid #a7f3d0;
 }
 
 /* Loading Skeleton */

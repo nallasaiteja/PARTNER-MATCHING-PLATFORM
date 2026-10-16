@@ -21,4 +21,29 @@ export class LoginDto {
   @IsNotEmpty()
   @MinLength(6)
   password: string;
+
+  @IsOptional()
+  @IsString()
+  portalType?: 'MEMBER' | 'STAFF';
 }
+
+export class VerifyAdmin2faDto {
+  @IsString()
+  @IsNotEmpty()
+  challengeToken: string;
+
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+}
+
+export class VerifyAdminRecoveryCodeDto {
+  @IsString()
+  @IsNotEmpty()
+  challengeToken: string;
+
+  @IsString()
+  @IsNotEmpty()
+  recoveryCode: string;
+}
+

@@ -144,3 +144,35 @@
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (TABLETS & MOBILE)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .member-mgmt-root {
+    gap: 16px;
+    padding-bottom: 24px;
+  }
+
+  .member-header-panel {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .search-input-wrapper {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .member-sub-tabs {
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .member-tab-btn {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+}

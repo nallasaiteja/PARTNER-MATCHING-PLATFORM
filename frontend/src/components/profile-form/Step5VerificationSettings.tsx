@@ -54,6 +54,9 @@ export const Step5VerificationSettings: React.FC<Step5Props> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [isBusy, setIsBusy] = useState(false);
   const [acceptancePreferencePackages, setAcceptancePreferencePackages] = useState<string[]>(['PAID']);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [rejectionModalError, setRejectionModalError] = useState('');
 
   useEffect(() => {
     fetchContactRevealPackages()
@@ -84,6 +87,9 @@ export const Step5VerificationSettings: React.FC<Step5Props> = ({
     try {
       const result = await uploadIdProof(profileId, file);
       onIdProofUploaded(result.url);
+      onChange('idProofStatus', 'PENDING_REVIEW');
+      onChange('idProofRejectionReason', null);
+      onChange('idProofVerified', false);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : 'Unable to upload ID proof');
     } finally {
@@ -91,17 +97,47 @@ export const Step5VerificationSettings: React.FC<Step5Props> = ({
     }
   };
 
-  const handleIdProofReview = async () => {
+  const handleIdProofApprove = async () => {
     if (!profileId) return;
     setIsBusy(true);
     setErrorMessage('');
     try {
       const result = await verifyIdProof(profileId, true);
-      onChange('idProofVerified', result.profileData?.step5?.idProofVerified ?? true);
+      onChange('idProofVerified', true);
+      onChange('idProofStatus', 'VERIFIED');
+      onChange('idProofRejectionReason', null);
       onChange('idProofVerifiedAt', result.profileData?.step5?.idProofVerifiedAt || new Date().toISOString());
       onChange('idProofVerifiedBy', result.profileData?.step5?.idProofVerifiedBy || user?.id || '');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to verify ID proof');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleOpenRejectModal = () => {
+    setRejectionReasonInput('');
+    setRejectionModalError('');
+    setIsRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!profileId) return;
+    const reason = rejectionReasonInput.trim();
+    if (reason.length < 5) {
+      setRejectionModalError('Please enter a specific rejection reason (at least 5 characters).');
+      return;
+    }
+    setIsBusy(true);
+    setRejectionModalError('');
+    try {
+      await verifyIdProof(profileId, false, reason);
+      onChange('idProofVerified', false);
+      onChange('idProofStatus', 'REJECTED');
+      onChange('idProofRejectionReason', reason);
+      setIsRejectModalOpen(false);
+    } catch (error) {
+      setRejectionModalError(error instanceof Error ? error.message : 'Failed to reject ID proof');
     } finally {
       setIsBusy(false);
     }
@@ -228,31 +264,255 @@ export const Step5VerificationSettings: React.FC<Step5Props> = ({
       </div>
 
       <div className="profile-address-section">
-        <h3 className="address-section-title">ID Proof</h3>
-        {storedProofUrl ? (
-          <button type="button" className="btn-nav btn-nav-draft" disabled={isBusy || !profileId}
-            onClick={() => void handleIdProofDownload()}>Download uploaded ID proof</button>
-        ) : (
-          <div className="form-field-group">
-            <label className="form-label" htmlFor="step5-id-proof">Upload ID proof</label>
-            <input id="step5-id-proof" type="file"
+        <h3 className="address-section-title">ID Proof Verification</h3>
+
+        {/* Member Rejection Alert Banner */}
+        {data.idProofStatus === 'REJECTED' && (
+          <div
+            style={{
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '8px',
+              padding: '14px 16px',
+              marginBottom: '16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <span style={{ fontSize: '18px' }}>⚠️</span>
+              <strong style={{ color: '#991b1b', fontSize: '14px' }}>ID Proof Verification Rejected</strong>
+            </div>
+            <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#b91c1c' }}>
+              <strong>Reason:</strong> {data.idProofRejectionReason || 'The uploaded document did not meet verification criteria.'}
+            </p>
+            <p style={{ margin: 0, fontSize: '12px', color: '#7f1d1d' }}>
+              Please review the reason above and upload a valid, clear government-issued ID proof below. Your reviewer will be alerted automatically upon re-upload.
+            </p>
+          </div>
+        )}
+
+        {/* Document Status & Download */}
+        {storedProofUrl && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginBottom: '12px',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                Uploaded Document: {storedProofUrl.split('/').pop() || 'ID Proof Document'}
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
+                Status:{' '}
+                {data.idProofVerified ? (
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>✓ Verified</span>
+                ) : data.idProofStatus === 'REJECTED' ? (
+                  <span style={{ color: '#dc2626', fontWeight: 600 }}>✕ Rejected</span>
+                ) : (
+                  <span style={{ color: '#d97706', fontWeight: 600 }}>⏳ Pending Review</span>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn-nav btn-nav-draft"
+              disabled={isBusy || !profileId}
+              onClick={() => void handleIdProofDownload()}
+              style={{ padding: '6px 14px', fontSize: '12px' }}
+            >
+              📥 Download ID Proof
+            </button>
+          </div>
+        )}
+
+        {/* Upload / Re-upload Document */}
+        {(!data.idProofVerified || data.idProofStatus === 'REJECTED') && (
+          <div className="form-field-group" style={{ marginBottom: '16px' }}>
+            <label className="form-label" htmlFor="step5-id-proof">
+              {storedProofUrl ? 'Re-upload / Replace ID Proof (PDF, JPG, PNG)' : 'Upload Government ID Proof (PDF, JPG, PNG)'}
+            </label>
+            <input
+              id="step5-id-proof"
+              type="file"
               accept="image/jpeg,image/png,image/webp,application/pdf"
               disabled={readOnly || isBusy || !profileId}
-              onChange={(event) => void handleIdProofUpload(event.target.files?.[0])} />
+              onChange={(event) => void handleIdProofUpload(event.target.files?.[0])}
+            />
             {!profileId && <span className="form-helper-text">Save the profile before uploading a document.</span>}
             {uploadError && <span className="form-error-msg">{uploadError}</span>}
           </div>
         )}
-        <div className="radio-group-row">
-          <span className="form-helper-text">
-            ID proof review: {data.idProofVerified ? 'Verified' : storedProofUrl ? 'Pending review' : 'Not uploaded'}
-          </span>
-          {canReviewIdProof && storedProofUrl && !data.idProofVerified && (
-            <button type="button" className="btn-nav btn-nav-draft" onClick={() => void handleIdProofReview()}
-              disabled={isBusy}>Mark verified</button>
-          )}
-        </div>
+
+        {/* Reviewer Actions (Super Admin, Admin, Branch Manager) */}
+        {canReviewIdProof && storedProofUrl && !data.idProofVerified && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '14px',
+              background: '#f1f5f9',
+              borderRadius: '8px',
+              marginTop: '12px',
+            }}
+          >
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Reviewer Action:</span>
+            <button
+              type="button"
+              onClick={() => void handleIdProofApprove()}
+              disabled={isBusy}
+              style={{
+                backgroundColor: '#16a34a',
+                color: '#fff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              ✓ Approve ID Proof
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenRejectModal}
+              disabled={isBusy}
+              style={{
+                backgroundColor: '#dc2626',
+                color: '#fff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+            >
+              ✕ Reject ID Proof
+            </button>
+          </div>
+        )}
+
         {downloadError && <span className="form-error-msg">{downloadError}</span>}
+
+        {/* Rejection Modal Dialog */}
+        {isRejectModalOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(3px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '16px',
+            }}
+          >
+            <div
+              style={{
+                background: '#ffffff',
+                borderRadius: '12px',
+                maxWidth: '480px',
+                width: '100%',
+                padding: '24px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              }}
+            >
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700, color: '#991b1b' }}>
+                Reject ID Proof
+              </h3>
+              <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
+                Please provide a clear rejection reason. This will be shown to the member on their dashboard so they know how to correct the document.
+              </p>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label
+                  htmlFor="rejection-reason-textarea"
+                  style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}
+                >
+                  Rejection Reason *
+                </label>
+                <textarea
+                  id="rejection-reason-textarea"
+                  rows={4}
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g., ID proof document is blurry or unreadable. Please provide a clear government photo ID with name matching profile."
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    boxSizing: 'border-box',
+                  }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
+                  <span>Minimum 5 characters required</span>
+                  <span>{rejectionReasonInput.trim().length} chars</span>
+                </div>
+              </div>
+
+              {rejectionModalError && (
+                <div style={{ color: '#dc2626', fontSize: '12px', marginBottom: '16px', background: '#fee2e2', padding: '8px 12px', borderRadius: '6px' }}>
+                  {rejectionModalError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsRejectModalOpen(false)}
+                  disabled={isBusy}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: '#fff',
+                    color: '#475569',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmReject()}
+                  disabled={isBusy || rejectionReasonInput.trim().length < 5}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: rejectionReasonInput.trim().length >= 5 ? '#dc2626' : '#fca5a5',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    cursor: rejectionReasonInput.trim().length >= 5 ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {isBusy ? 'Rejecting...' : 'Confirm Rejection'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {isOwnMemberProfile && (
@@ -356,8 +616,17 @@ export const Step5VerificationSettings: React.FC<Step5Props> = ({
             <span>Email Verification: <strong>{data.emailVerified ? 'Verified' : 'Pending Verification'}</strong></span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>{data.idProofVerified ? '✅' : '⏳'}</span>
-            <span>ID Proof Admin Audit: <strong>{data.idProofVerified ? 'Approved' : 'Pending Admin Verification'}</strong></span>
+            <span>{data.idProofVerified ? '✅' : data.idProofStatus === 'REJECTED' ? '❌' : '⏳'}</span>
+            <span>
+              ID Proof Admin Audit:{' '}
+              <strong style={{ color: data.idProofVerified ? '#16a34a' : data.idProofStatus === 'REJECTED' ? '#dc2626' : 'inherit' }}>
+                {data.idProofVerified
+                  ? 'Approved'
+                  : data.idProofStatus === 'REJECTED'
+                  ? `Rejected (${data.idProofRejectionReason || 'Please resubmit'})`
+                  : 'Pending Admin Verification'}
+              </strong>
+            </span>
           </div>
         </div>
       </div>

@@ -79,6 +79,14 @@ model Organization {
 
   users          User[]
   memberProfiles MemberProfile[]
+  invoices       MemberInvoice[]  @relation("OrgInvoices")
+  franchiseWallet FranchiseWallet?
+  staffVisits    StaffProfileVisit[] @relation("BranchVisits")
+  staffMessages  StaffMessageLog[]   @relation("BranchMessages")
+  supportTickets SupportTicket[]     @relation("OrgTickets")
+  attendances    StaffAttendance[]   @relation("BranchAttendance")
+  leaveApplications StaffLeaveApplication[] @relation("BranchLeaves")
+  paymentAlerts  PaymentAlert[]      @relation("BranchPaymentAlerts")
 }
 
 model PlatformSetting {
@@ -141,6 +149,15 @@ model User {
   passwordResetExpiresAt      DateTime?
   passwordResetRequestedAt    DateTime?
 
+  // Section 12.1.A: Mandatory Two-Factor Authentication for Admin Accounts
+  twoFactorEnabled            Boolean   @default(false)
+  twoFactorSecretHash         String?
+  twoFactorOtpHash            String?
+  twoFactorOtpExpiresAt       DateTime?
+  twoFactorOtpAttempts        Int       @default(0)
+  twoFactorBackupCodes        String[]  @default([])
+  twoFactorEnrolledAt         DateTime?
+
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
 
@@ -171,6 +188,27 @@ model User {
   staffAccessRules StaffAccessRule[]
   internalNotes   MemberInternalNote[]
   reviewedUpdateRequests ProfileUpdateRequest[]
+  raisedInvoices  MemberInvoice[]  @relation("RaisedByStaff")
+  saleInvoices    MemberInvoice[]  @relation("SaleStaff")
+  approvedInvoices MemberInvoice[] @relation("ApprovedByStaff")
+  cashReceivedInvoices MemberInvoice[] @relation("CashReceivedByStaff")
+  commissionTransactions CommissionTransaction[] @relation("AgentCommissions")
+  configuredCommissions  CommissionConfig[]      @relation("CommissionConfiguredBy")
+  performedWalletTransactions FranchiseWalletTransaction[] @relation("WalletActor")
+  financialAuditLogs     FinancialAuditLog[]     @relation("FinancialAuditActor")
+  resolvedTickets        SupportTicket[]         @relation("TicketResolver")
+  profileVisits          StaffProfileVisit[]     @relation("StaffVisits")
+  staffMessages          StaffMessageLog[]       @relation("StaffMessages")
+  attendances            StaffAttendance[]       @relation("StaffAttendanceRecords")
+  leaveApplications      StaffLeaveApplication[] @relation("StaffLeaveApplications")
+  reviewedLeaves         StaffLeaveApplication[] @relation("ReviewedLeaves")
+  responsibleAlerts      PaymentAlert[]          @relation("ResponsibleStaffAlerts")
+  alertNotifications     AlertNotificationLog[]  @relation("ReceivedAlertNotifications")
+  notificationsReceived  NotificationLog[]       @relation("RecipientUserNotifications")
+  pushTokens             UserPushToken[]
+  createdComplaints      InternalComplaint[]     @relation("ComplaintCreator")
+  staffComplaints        InternalComplaint[]     @relation("ComplaintStaff")
+  staffSuggestions       ProfileSuggestion[]     @relation("StaffSuggestions")
 
   @@index([role])
   @@index([status])
@@ -245,6 +283,10 @@ model MemberProfile {
   // Catch-all for additional data not yet given their own columns
   profileData Json?
 
+  // Section 11.6: Marketing Attribution & Referral Source Tracking
+  registrationSource String?   @default("DIRECT") // GOOGLE, FACEBOOK, WHATSAPP, FRIEND_REFERRAL, OTHER, DIRECT
+  attributionData    Json?     // { utmSource, utmMedium, utmCampaign, utmTerm, utmContent, referrer }
+
   // Section 4: Terms & Package Entitlements
   termsAccepted          Boolean   @default(false)
   termsAcceptedAt        DateTime?
@@ -280,6 +322,12 @@ model MemberProfile {
   updateRequests         ProfileUpdateRequest[]
   paymentAlerts          PaymentAlert[]
   featuredRecords        FeaturedProfileRecord[]
+  staffVisits            StaffProfileVisit[]     @relation("MemberProfileVisits")
+  sentStaffMessages      StaffMessageLog[]       @relation("MemberStaffMessages")
+  notifications          NotificationLog[]       @relation("RecipientMemberNotifications")
+  memberComplaints       InternalComplaint[]     @relation("ComplaintMember")
+  suggestedAsProfile     ProfileSuggestion[]     @relation("SuggestedProfiles")
+  receivedProfileSuggestions ProfileSuggestion[] @relation("ReceivedSuggestions")
 
   @@index([ownerOrgId])
   @@index([ownershipType])
@@ -328,17 +376,28 @@ model SupportTicket {
   status          TicketStatus @default(OPEN)
 
   // OTP for closure verification
-  closureOtp      String?
-  closureOtpSentAt DateTime?
-  closureOtpVerifiedAt DateTime?
+  closureOtp            String?
+  closureOtpHash        String?
+  closureOtpSentAt      DateTime?
+  closureOtpVerifiedAt  DateTime?
+  closureOtpFailedAttempts Int @default(0)
+  closureOtpExpiresAt   DateTime?
 
   assignedToId    String?
+
+  orgId           String?
+  org             Organization? @relation("OrgTickets", fields: [orgId], references: [id])
+  resolvedById    String?
+  resolvedBy      User?         @relation("TicketResolver", fields: [resolvedById], references: [id])
+  resolvedAt      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([memberProfileId])
+  @@index([orgId])
+  @@index([resolvedById])
 }
 
 // ---------------------------------------------------------
@@ -371,6 +430,10 @@ enum AuditAction {
   CONTACT_REVEAL_REQUEST
   CONTACT_REVEALED
   PACKAGE_UPGRADE
+  TWO_FACTOR_SETUP
+  TWO_FACTOR_VERIFY
+  TWO_FACTOR_RECOVERY
+  SECURITY_CONFIG
 }
 
 model AuditLog {
@@ -406,6 +469,7 @@ model PackageMaster {
   cost                   Float
   servicesProvided       String
   featuredProfileEligible Boolean        @default(false)
+  suggestedProfilesEligible Boolean       @default(false)
   isActive               Boolean         @default(true)
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
@@ -491,19 +555,57 @@ model ProfileViewLog {
 
 model MemberInvoice {
   id              String        @id @default(uuid())
-  invoiceNumber   String        @unique
+  invoiceNumber   String?       @unique
+  requestNumber   String?       @unique
   memberProfileId String
   memberProfile   MemberProfile @relation(fields: [memberProfileId], references: [id], onDelete: Cascade)
   packageId       String
   package         PackageMaster @relation(fields: [packageId], references: [id])
   amount          Float
-  paymentMode     String        // "ONLINE", "UPI", "CARD", "EMI", "CASH"
+  paymentMode     String        // "ONLINE", "CHEQUE", "CASH", "UPI", "CARD", "EMI"
   status          String        @default("PENDING") // "PENDING", "APPROVED", "REJECTED"
   notes           String?
+
+  // Section 6: Approvals & Financial tracking
+  orgId           String?
+  org             Organization? @relation("OrgInvoices", fields: [orgId], references: [id])
+  raisedById      String?
+  raisedBy        User?         @relation("RaisedByStaff", fields: [raisedById], references: [id])
+  saleStaffId     String?
+  saleStaff       User?         @relation("SaleStaff", fields: [saleStaffId], references: [id])
+  approvedById    String?
+  approvedBy      User?         @relation("ApprovedByStaff", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  invoiceDate     DateTime?
+
+  // Transaction & Payment details
+  bankName        String?
+  transactionRef  String?
+  chequeDate      DateTime?
+  isCash          Boolean       @default(false)
+  cashReceivedDeclaration Boolean @default(false)
+  cashReceivedById String?
+  cashReceivedBy  User?         @relation("CashReceivedByStaff", fields: [cashReceivedById], references: [id])
+  walletDeductedAmount Float?
+  autoCancelledAt DateTime?
+
   createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @default(now()) @updatedAt
+
+  walletTransactions    FranchiseWalletTransaction[]
+  ledgerEntries         FinancialLedgerEntry[]
+  commissionTransaction CommissionTransaction?
 
   @@index([memberProfileId])
   @@index([status])
+  @@index([orgId])
+  @@index([raisedById])
+  @@index([saleStaffId])
+  @@index([createdAt])
+  @@index([invoiceNumber])
+  @@index([requestNumber])
 }
 
 // ---------------------------------------------------------
@@ -582,11 +684,21 @@ model PaymentAlert {
   note            String?
   createdById     String
   isResolved      Boolean       @default(false)
-  createdAt       DateTime      @default(now())
+  notificationSent Boolean      @default(false)
+  notificationSentAt DateTime?
+  responsibleStaffId String?
+  responsibleStaff   User?        @relation("ResponsibleStaffAlerts", fields: [responsibleStaffId], references: [id])
+  branchOrgId        String?
+  branchOrg          Organization? @relation("BranchPaymentAlerts", fields: [branchOrgId], references: [id])
+  createdAt          DateTime      @default(now())
+
+  notifications      AlertNotificationLog[]
 
   @@index([memberProfileId])
   @@index([alertDate])
   @@index([isResolved])
+  @@index([branchOrgId])
+  @@index([responsibleStaffId])
 }
 
 model SmsCampaign {
@@ -597,6 +709,11 @@ model SmsCampaign {
   targetIdRangeStart  String?
   targetIdRangeEnd    String?
   recipientCount      Int      @default(0)
+  successCount        Int      @default(0)
+  failedCount         Int      @default(0)
+  deliveryDetails     Json?
+  costPerSms          Float    @default(0.25)
+  totalCost           Float    @default(0)
   createdById         String
   status              String   @default("SENT")
   createdAt           DateTime @default(now())
@@ -678,4 +795,537 @@ model FeaturedProfileRecord {
   @@index([isActive])
   @@index([startDate, endDate])
 }
+
+// ---------------------------------------------------------
+// SECTION 6: FINANCIAL FLOWS, WALLETS, LEDGERS & COMMISSIONS
+// ---------------------------------------------------------
+
+enum WalletTransactionType {
+  TOPUP
+  DEDUCTION
+  REFUND
+  ADJUSTMENT
+}
+
+model FranchiseWallet {
+  id              String                 @id @default(uuid())
+  franchiseOrgId  String                 @unique
+  franchiseOrg    Organization           @relation(fields: [franchiseOrgId], references: [id], onDelete: Cascade)
+  balance         Float                  @default(0)
+  creditLimit     Float                  @default(0)
+  currency        String                 @default("INR")
+  isActive        Boolean                @default(true)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  transactions    FranchiseWalletTransaction[]
+}
+
+model FranchiseWalletTransaction {
+  id              String                 @id @default(uuid())
+  walletId        String
+  wallet          FranchiseWallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  franchiseOrgId  String
+  type            WalletTransactionType
+  amount          Float
+  balanceBefore   Float
+  balanceAfter    Float
+  referenceId     String?
+  invoiceId       String?
+  invoice         MemberInvoice?         @relation(fields: [invoiceId], references: [id])
+  performedById   String
+  performedBy     User                   @relation("WalletActor", fields: [performedById], references: [id])
+  notes           String?
+  createdAt       DateTime               @default(now())
+
+  @@index([walletId])
+  @@index([franchiseOrgId])
+  @@index([type])
+  @@index([invoiceId])
+  @@index([createdAt])
+}
+
+enum LedgerType {
+  HQ
+  FRANCHISE
+  AGENT
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+}
+
+enum FinancialTransactionCategory {
+  INVOICE_SALE
+  WALLET_TOPUP
+  COMMISSION
+  AD_REVENUE
+  WEDDING_SERVICE_REVENUE
+  ADJUSTMENT
+}
+
+model FinancialLedgerEntry {
+  id                  String                       @id @default(uuid())
+  ledgerType          LedgerType
+  ownerOrgId          String?
+  agentUserId         String?
+  invoiceId           String?
+  invoice             MemberInvoice?               @relation(fields: [invoiceId], references: [id])
+  category            FinancialTransactionCategory
+  entryType           LedgerEntryType
+  amount              Float
+  balanceAfter        Float?
+  commissionRate      Float?
+  commissionAmount    Float?
+  description         String
+  referenceNumber     String?
+  actorId             String?
+  actorRole           String?
+  metadata            Json?
+  createdAt           DateTime                     @default(now())
+
+  @@index([ledgerType, ownerOrgId])
+  @@index([ledgerType, agentUserId])
+  @@index([invoiceId])
+  @@index([category])
+  @@index([createdAt])
+}
+
+enum CommissionType {
+  PERCENTAGE
+  FIXED
+}
+
+model CommissionConfig {
+  id              String          @id @default(uuid())
+  scope           String          // "GLOBAL_BRANCH", "ORG_FRANCHISE", "AGENT_SPECIFIC"
+  orgId           String?
+  agentUserId     String?
+  packageId       String?
+  commissionType  CommissionType  @default(PERCENTAGE)
+  rateValue       Float
+  configuredById  String
+  configuredBy    User            @relation("CommissionConfiguredBy", fields: [configuredById], references: [id])
+  isActive        Boolean         @default(true)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([scope, orgId])
+  @@index([agentUserId])
+  @@index([packageId])
+}
+
+model CommissionTransaction {
+  id                String          @id @default(uuid())
+  invoiceId         String          @unique
+  invoice           MemberInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  agentUserId       String
+  agentUser         User            @relation("AgentCommissions", fields: [agentUserId], references: [id])
+  orgId             String?
+  packageId         String
+  packagePrice      Float
+  commissionType    CommissionType
+  rateValue         Float
+  commissionAmount  Float
+  status            String          @default("EARNED") // "EARNED", "SETTLED_OFFLINE", "CANCELLED"
+  settledAt         DateTime?
+  settledById       String?
+  notes             String?
+  createdAt         DateTime        @default(now())
+
+  @@index([agentUserId])
+  @@index([orgId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model FinancialAuditLog {
+  id              String          @id @default(uuid())
+  actorId         String
+  actor           User            @relation("FinancialAuditActor", fields: [actorId], references: [id])
+  actorRole       String
+  action          String
+  resourceType    String
+  resourceId      String
+  previousValues  Json?
+  newValues       Json?
+  reason          String?
+  ipAddress       String?
+  createdAt       DateTime        @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------
+// SECTION 7: STAFF ACTIVITY, VISITS & COMMUNICATIONS
+// ---------------------------------------------------------
+
+model StaffProfileVisit {
+  id              String        @id @default(uuid())
+  staffId         String
+  staff           User          @relation("StaffVisits", fields: [staffId], references: [id], onDelete: Cascade)
+  branchOrgId     String?
+  branchOrg       Organization? @relation("BranchVisits", fields: [branchOrgId], references: [id])
+  memberProfileId String
+  memberProfile   MemberProfile @relation("MemberProfileVisits", fields: [memberProfileId], references: [id], onDelete: Cascade)
+  visitedAt       DateTime      @default(now())
+
+  @@index([staffId])
+  @@index([memberProfileId])
+  @@index([branchOrgId])
+  @@index([visitedAt])
+}
+
+model StaffMessageLog {
+  id              String        @id @default(uuid())
+  staffId         String
+  staff           User          @relation("StaffMessages", fields: [staffId], references: [id], onDelete: Cascade)
+  branchOrgId     String?
+  branchOrg       Organization? @relation("BranchMessages", fields: [branchOrgId], references: [id])
+  senderMemberId  String?
+  senderMember    MemberProfile? @relation("MemberStaffMessages", fields: [senderMemberId], references: [id])
+  subject         String?
+  content         String
+  direction       String        @default("INBOUND") // INBOUND (received by staff), OUTBOUND
+  createdAt       DateTime      @default(now())
+
+  @@index([staffId])
+  @@index([branchOrgId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------
+// SECTION 8: BRANCH MANAGER, ATTENDANCE & LEAVE MANAGEMENT
+// ---------------------------------------------------------
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  ON_LEAVE
+}
+
+model StaffAttendance {
+  id                   String           @id @default(uuid())
+  staffId              String
+  staff                User             @relation("StaffAttendanceRecords", fields: [staffId], references: [id], onDelete: Cascade)
+  branchOrgId          String?
+  branchOrg            Organization?    @relation("BranchAttendance", fields: [branchOrgId], references: [id])
+  date                 String           // "YYYY-MM-DD"
+  status               AttendanceStatus @default(ABSENT)
+  firstLoginAt         DateTime?
+  lastActiveAt         DateTime?
+  workingHours         Float            @default(0) // computed hours
+  hasActivePermissions Boolean          @default(true)
+  isManualAdjustment   Boolean          @default(false)
+  adjustedById         String?
+  notes                String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@unique([staffId, date])
+  @@index([staffId])
+  @@index([branchOrgId])
+  @@index([date])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model StaffLeaveApplication {
+  id              String        @id @default(uuid())
+  staffId         String
+  staff           User          @relation("StaffLeaveApplications", fields: [staffId], references: [id], onDelete: Cascade)
+  branchOrgId     String?
+  branchOrg       Organization? @relation("BranchLeaves", fields: [branchOrgId], references: [id])
+  leaveType       String        // "CASUAL", "SICK", "EARNED", "EMERGENCY"
+  startDate       DateTime
+  endDate         DateTime
+  reason          String
+  status          LeaveStatus   @default(PENDING)
+  reviewedById    String?
+  reviewedBy      User?         @relation("ReviewedLeaves", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([staffId])
+  @@index([branchOrgId])
+  @@index([status])
+}
+
+model AlertNotificationLog {
+  id             String       @id @default(uuid())
+  paymentAlertId String
+  paymentAlert   PaymentAlert @relation(fields: [paymentAlertId], references: [id], onDelete: Cascade)
+  recipientId    String
+  recipient      User         @relation("ReceivedAlertNotifications", fields: [recipientId], references: [id])
+  channel        String       @default("IN_APP") // IN_APP, EMAIL, SMS
+  status         String       @default("SENT")   // SENT, FAILED
+  error          String?
+  sentAt         DateTime     @default(now())
+
+  @@unique([paymentAlertId, recipientId, channel])
+  @@index([recipientId])
+  @@index([sentAt])
+}
+
+// ---------------------------------------------------------
+// SECTION 10: COMMUNICATIONS & NOTIFICATIONS
+// ---------------------------------------------------------
+
+model NotificationLog {
+  id                       String         @id @default(uuid())
+  type                     String         // BIRTHDAY, FESTIVAL, PAYMENT_ALERT, PACKAGE_EXPIRY, INTEREST_RECEIVED, INTEREST_ACCEPTED, PROFILE_BLOCKED, TICKET_CLOSURE_OTP, BULK_BRANCH_SMS, MANUAL
+  channel                  String         // APP_PUSH, SMS, EMAIL, WHATSAPP
+  recipientUserId          String?
+  recipientUser            User?          @relation("RecipientUserNotifications", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  recipientMemberProfileId String?
+  recipientMemberProfile   MemberProfile? @relation("RecipientMemberNotifications", fields: [recipientMemberProfileId], references: [id], onDelete: SetNull)
+  recipientContact         String
+  recipientName            String?
+  title                    String?
+  content                  String
+  templateId               String?
+  status                   String         @default("SENT") // PENDING, SENT, DELIVERED, FAILED, SIMULATED_SUCCESS
+  provider                 String?
+  providerMessageId        String?
+  error                    String?
+  metadata                 Json?
+  idempotencyKey           String?        @unique
+  scheduledFor             DateTime?
+  sentAt                   DateTime       @default(now())
+  createdAt                DateTime       @default(now())
+
+  @@index([type, status])
+  @@index([channel])
+  @@index([recipientUserId])
+  @@index([recipientMemberProfileId])
+  @@index([sentAt])
+  @@index([idempotencyKey])
+}
+
+model FestivalWishConfig {
+  id               String    @id @default(uuid())
+  festivalName     String
+  festivalDate     String    // YYYY-MM-DD
+  messageTemplate  String
+  discountPercent  Float?
+  offerCode        String?
+  channels         Json?     // ["APP_PUSH", "EMAIL", "WHATSAPP"]
+  isActive         Boolean   @default(true)
+  createdById      String?
+  lastDispatchedAt DateTime?
+  dispatchCount    Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([festivalDate, isActive])
+}
+
+model UserPushToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String
+  platform  String   @default("WEB") // WEB, ANDROID, IOS
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, token])
+  @@index([userId, isActive])
+}
+
+// ---------------------------------------------------------
+// SECTION 11.1: SUCCESS STORIES
+// ---------------------------------------------------------
+
+model SuccessStory {
+  id                 String    @id @default(uuid())
+  partner1MemberId   String
+  partner2MemberId   String
+  partner1ProfileId  String?
+  partner2ProfileId  String?
+  partner1Name       String?
+  partner2Name       String?
+  title              String?
+  story              String?
+  engagementDate     DateTime?
+  marriageDate       DateTime
+  couplePhotos       Json      // string array of image URLs
+  youtubeVideoUrl    String?   // optional YouTube video embed URL
+  isPublished        Boolean   @default(true)
+  createdById        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([isPublished])
+  @@index([marriageDate])
+  @@index([partner1MemberId])
+  @@index([partner2MemberId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------
+// SECTION 11.2: CAREERS MODULE
+// ---------------------------------------------------------
+
+enum CareerApplicationStatus {
+  PENDING
+  REGISTERED_AS_STAFF
+  BLOCKED
+}
+
+model CareerApplication {
+  id                String                  @id @default(uuid())
+  applicationNumber String                  @unique // e.g. "CAREER-2026-XXXX"
+  mobile            String
+  name              String
+  surname           String
+  gender            String
+  maritalStatus     String
+  email             String
+  dateOfBirth       DateTime
+  religion          String
+  caste             String
+
+  state             String
+  district          String
+  mandal            String
+  temporaryAddress  String
+  permanentAddress  String
+
+  idProofType       String
+  idProofNumber     String                  @unique // Unique constraint against duplicates
+  idProofUrl        String
+  panCardUrl        String
+
+  educationDetails  Json                    // array of qualification objects
+  experienceYears   Float                   @default(0)
+  fatherName        String?
+  fatherProfession  String?
+  motherName        String?
+  motherProfession  String?
+
+  referenceName     String?
+  referenceMobile   String?
+  referenceAddress  String?
+
+  photos            Json                    // array of up to 10 photo URLs
+  timeTakenSeconds  Int                     @default(0) // Time taken to complete the application
+
+  status            CareerApplicationStatus @default(PENDING)
+  blockedReason     String?
+  blockedAt         DateTime?
+  blockedById       String?
+
+  registeredStaffId String?
+  registeredAt      DateTime?
+
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([mobile])
+  @@index([status])
+  @@index([idProofNumber])
+  @@index([createdAt])
+}
+
+model CareerOtpVerification {
+  id          String    @id @default(uuid())
+  mobile      String
+  otpHash     String
+  expiresAt   DateTime
+  isVerified  Boolean   @default(false)
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([mobile, isVerified])
+}
+
+// ---------------------------------------------------------
+// SECTION 11.4: INTERNAL COMPLAINTS MODULE (ADMIN/SUPER ADMIN ONLY)
+// ---------------------------------------------------------
+
+enum ComplaintType {
+  MEMBER
+  STAFF
+}
+
+enum ComplaintStatus {
+  OPEN
+  UNDER_INVESTIGATION
+  RESOLVED
+  DISMISSED
+}
+
+model InternalComplaint {
+  id                String          @id @default(uuid())
+  complaintNumber   String          @unique // e.g. CMP-2026-0001
+  type              ComplaintType
+  relatedMemberId   String?
+  relatedStaffId    String?
+  subject           String
+  description       String
+  status            ComplaintStatus @default(OPEN)
+  internalNotes     String?
+  createdById       String
+  statusHistory     Json            @default("[]") // [{ status, changedById, timestamp, notes }]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  relatedMember     MemberProfile?  @relation("ComplaintMember", fields: [relatedMemberId], references: [id])
+  relatedStaff      User?           @relation("ComplaintStaff", fields: [relatedStaffId], references: [id])
+  createdBy         User            @relation("ComplaintCreator", fields: [createdById], references: [id])
+
+  @@index([type])
+  @@index([status])
+  @@index([relatedMemberId])
+  @@index([relatedStaffId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------
+// SECTION 11.5: SUGGESTED PROFILES MODULE
+// ---------------------------------------------------------
+
+enum SuggestionStatus {
+  PENDING
+  VIEWED
+  INTERESTED
+  DECLINED
+}
+
+model ProfileSuggestion {
+  id                       String           @id @default(uuid())
+  staffId                  String
+  suggestedProfileId       String
+  receivingMemberProfileId String
+  status                   SuggestionStatus @default(PENDING)
+  notes                    String?          // Staff's suggestion reason or match note
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  staff                    User             @relation("StaffSuggestions", fields: [staffId], references: [id])
+  suggestedProfile         MemberProfile    @relation("SuggestedProfiles", fields: [suggestedProfileId], references: [id], onDelete: Cascade)
+  receivingMemberProfile   MemberProfile    @relation("ReceivedSuggestions", fields: [receivingMemberProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([suggestedProfileId, receivingMemberProfileId])
+  @@index([staffId])
+  @@index([receivingMemberProfileId])
+  @@index([suggestedProfileId])
+  @@index([createdAt])
+}
+
 

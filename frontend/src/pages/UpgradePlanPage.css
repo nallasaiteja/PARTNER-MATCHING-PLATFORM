@@ -343,3 +343,33 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (TABLETS & MOBILE)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .upgrade-hero-banner {
+    padding: 20px 16px;
+    border-radius: 12px;
+  }
+
+  .upgrade-hero-banner h2 {
+    font-size: 1.3rem;
+  }
+
+  .packages-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .payment-modal-card {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 18px !important;
+  }
+
+  .billing-split-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}

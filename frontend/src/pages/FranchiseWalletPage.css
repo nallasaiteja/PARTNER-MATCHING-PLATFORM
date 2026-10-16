@@ -1,0 +1,100 @@
+/* ==========================================================================
+   FRANCHISE WALLET MANAGEMENT STYLES (SECTION 6.8)
+   ========================================================================== */
+
+.wallet-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: #1e293b;
+  padding-bottom: 50px;
+}
+
+.wallet-header-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: white;
+  padding: 22px 26px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.wallet-header-panel h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.wallet-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.wallet-stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 22px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wallet-stat-card.primary {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+  color: white;
+  border: none;
+}
+
+.wallet-stat-card.primary .stat-label {
+  color: #bfdbfe;
+}
+
+.wallet-stat-card.primary .stat-val {
+  color: white;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-val {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.stat-sub {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.tx-type-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tx-type-chip.topup {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.tx-type-chip.deduction {
+  background: #fee2e2;
+  color: #b91c1c;
+}

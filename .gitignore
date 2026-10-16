@@ -134,3 +134,22 @@ dist
 
 # Vite / React build
 /frontend/dist/
+/backend/dist/
+/backend/uploads/
+/uploads/
+*.pem
+*.key
+*.cert
+*.crt
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Database Backups & Dumps
+backups/
+*.backup
+*.dump
+*.sql.gz

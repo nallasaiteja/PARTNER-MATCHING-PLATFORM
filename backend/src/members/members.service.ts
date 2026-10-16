@@ -15,12 +15,14 @@ import {
   calculateAge,
 } from '../profiles/matching-engine';
 import { MatchQueryFilterDto } from './dto/member-actions.dto';
+import { EventNotificationsService } from '../notifications/event-notifications.service';
 
 @Injectable()
 export class MembersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly eventNotificationsService?: EventNotificationsService,
   ) {}
 
   private async getMemberProfileByUserId(userId: string) {
@@ -91,9 +93,12 @@ export class MembersService {
       : 'Profile created by — Member';
 
     return {
+      id: profile.id,
       memberId: profile.memberId || `M${profile.id.slice(0, 8)}`,
       firstName: profile.firstName,
       lastName: profile.lastName,
+      currentStep: profile.currentStep,
+      completedSteps: profile.completedSteps,
       createdByType: profile.createdByType || 'MEMBER',
       createdByLabel,
       completion,
@@ -102,6 +107,9 @@ export class MembersService {
         emailVerified: Boolean(profile.user?.emailVerified),
         idProofUploaded: Boolean(profile.idProofFileUrl || step5.idProofUploaded),
         idProofVerified: Boolean(step5.idProofVerified),
+        idProofStatus: step5.idProofStatus || (step5.idProofVerified ? 'VERIFIED' : (profile.idProofFileUrl ? 'PENDING_REVIEW' : 'UNVERIFIED')),
+        idProofRejectionReason: step5.idProofRejectionReason || null,
+        idProofRejectedAt: step5.idProofRejectedAt || null,
       },
       membership: {
         packageType: profile.packageType,
@@ -676,6 +684,11 @@ export class MembersService {
       ipAddress,
     });
 
+    // Section 10: Dispatch App Push notification to receiving member
+    if (this.eventNotificationsService) {
+      this.eventNotificationsService.onInterestSent(sender.id, target.id).catch(() => {});
+    }
+
     return {
       message: 'Interest sent successfully',
       interest,
@@ -775,6 +788,11 @@ export class MembersService {
       metadata: { status },
       ipAddress,
     });
+
+    // Section 10: Dispatch App Push notification to sending member upon acceptance
+    if (status === 'ACCEPTED' && this.eventNotificationsService) {
+      this.eventNotificationsService.onInterestAccepted(interest.senderProfileId, interest.receiverProfileId).catch(() => {});
+    }
 
     return {
       message: `Interest ${status.toLowerCase()} successfully`,

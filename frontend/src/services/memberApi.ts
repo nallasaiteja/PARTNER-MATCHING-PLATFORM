@@ -2,18 +2,9 @@
  * Member API Service — Section 4
  */
 
-const API_BASE = '/api/v1';
+import { API_BASE_URL, getAuthHeaders } from './apiConfig';
 
-function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
+const API_BASE = API_BASE_URL;
 
 async function request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -57,6 +48,7 @@ export async function loginWithCredentials(credentials: {
   email?: string;
   memberId?: string;
   password: string;
+  portalType?: 'MEMBER' | 'STAFF';
 }) {
   return request('/auth/login', {
     method: 'POST',
@@ -75,6 +67,20 @@ export async function verifyLoginOtp(identifier: string, code: string, channel: 
   return request('/auth/login/otp/verify', {
     method: 'POST',
     body: JSON.stringify({ identifier, code, channel }),
+  });
+}
+
+export async function verifyAdmin2faApi(challengeToken: string, code: string) {
+  return request('/auth/admin/2fa/verify', {
+    method: 'POST',
+    body: JSON.stringify({ challengeToken, code }),
+  });
+}
+
+export async function verifyAdminRecoveryApi(challengeToken: string, recoveryCode: string) {
+  return request('/auth/admin/2fa/recovery', {
+    method: 'POST',
+    body: JSON.stringify({ challengeToken, recoveryCode }),
   });
 }
 

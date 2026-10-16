@@ -1,0 +1,57 @@
+/* ==========================================================================
+   FINANCIAL LEDGERS STYLES (SECTION 6.7)
+   ========================================================================== */
+
+.ledgers-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: #1e293b;
+  padding-bottom: 50px;
+}
+
+.ledger-summary-banner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.ledger-summary-box {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.ledger-summary-box.credit {
+  border-left: 4px solid #16a34a;
+}
+
+.ledger-summary-box.debit {
+  border-left: 4px solid #dc2626;
+}
+
+.ledger-summary-box.net {
+  border-left: 4px solid #2563eb;
+}
+
+.entry-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.entry-badge.credit {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.entry-badge.debit {
+  background: #fee2e2;
+  color: #b91c1c;
+}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchMatchDetail, revealContact, sendInterest } from '../services/memberApi';
+import { resolveMediaUrl } from '../services/apiConfig';
 import './MatchDetailModal.css';
 
 interface MatchDetailModalProps {
@@ -82,13 +83,23 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ profileId, o
             {/* Header Banner */}
             <div className="modal-header-banner">
               <div className="banner-photo-col">
-                {profile.isPhotoHidden || !profile.photoUrl ? (
+                {profile.isPhotoHidden ? (
                   <div className="modal-photo-locked">
                     <span>🔒</span>
                     <small>Photo visible to Paid members</small>
                   </div>
                 ) : (
-                  <img src={profile.photoUrl} alt={profile.name} className="modal-photo-img" />
+                  <img
+                    src={profile.photoUrl ? resolveMediaUrl(profile.photoUrl) : ((profile.gender || '').toLowerCase().startsWith('f') ? 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=600' : 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=600')}
+                    alt={profile.name}
+                    className="modal-photo-img"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = (profile.gender || '').toLowerCase().startsWith('f')
+                        ? 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=600'
+                        : 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=600';
+                    }}
+                  />
                 )}
               </div>
               <div className="banner-info-col">

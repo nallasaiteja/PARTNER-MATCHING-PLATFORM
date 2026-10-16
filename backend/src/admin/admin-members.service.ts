@@ -8,12 +8,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { AuditAction } from '@prisma/client';
 import { Role, RoleType } from '../common/constants/roles.constants';
+import { EventNotificationsService } from '../notifications/event-notifications.service';
 
 @Injectable()
 export class AdminMembersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly eventNotificationsService?: EventNotificationsService,
   ) {}
 
   /**
@@ -82,7 +84,7 @@ export class AdminMembersService {
   async listMembers(
     actor: any,
     options: {
-      type?: 'ALL' | 'FREE' | 'PAID' | 'BLOCKED' | 'TERMINATED' | 'CONVERTED';
+      type?: 'ALL' | 'FREE' | 'PAID' | 'BLOCKED' | 'TERMINATED' | 'CONVERTED' | 'PENDING_VERIFICATION';
       search?: string;
       page?: number;
       limit?: number;
@@ -110,6 +112,18 @@ export class AdminMembersService {
         path: ['isCasteConverted'],
         equals: true,
       };
+    } else if (type === 'PENDING_VERIFICATION') {
+      where.OR = [
+        { profileData: { path: ['step5', 'verificationStatus'], equals: 'PENDING_VERIFICATION' } },
+        { profileData: { path: ['step5', 'idProofStatus'], equals: 'PENDING_REVIEW' } },
+        {
+          AND: [
+            { idProofFileUrl: { not: null } },
+            { profileData: { path: ['step5', 'idProofVerified'], not: true } },
+          ],
+        },
+      ];
+      where.isBlocked = false;
     }
 
     if (options.search) {
@@ -158,31 +172,52 @@ export class AdminMembersService {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
-      members: members.map((m) => ({
-        id: m.id,
-        memberId: m.memberId,
-        firstName: m.firstName,
-        lastName: m.lastName,
-        gender: m.gender,
-        dateOfBirth: m.dateOfBirth,
-        mobile: m.user.mobile,
-        email: m.user.email,
-        packageType: m.packageType,
-        packageName: m.currentPackage?.name || (m.packageType === 'PAID' ? 'Paid Plan' : 'Free'),
-        packageExpiresAt: m.packageExpiresAt,
-        branchName: m.ownerOrg?.name || 'HQ Central',
-        isBlocked: m.isBlocked,
-        blockedAt: m.blockedAt,
-        blockedReason: m.blockedReason,
-        blockedByStaff: m.blockedBy?.fullName || m.blockedBy?.employeeId || m.blockedBy?.mobile,
-        closureRequested: m.closureRequested,
-        closureReason: m.closureReason,
-        isFeatured: m.isFeatured,
-        featuredUntil: m.featuredUntil,
-        notesCount: m._count.internalNotes,
-        pendingUpdateRequests: m._count.updateRequests,
-        createdAt: m.createdAt,
-      })),
+      members: members.map((m) => {
+        const pData = (m.profileData as Record<string, any>) || {};
+        const step5 = pData.step5 || {};
+        const completedSteps = Array.isArray(m.completedSteps) ? m.completedSteps : [];
+        const isComplete = completedSteps.length >= 5 || m.currentStep >= 5;
+        const verificationStatus = step5.verificationStatus || (isComplete ? 'PENDING_VERIFICATION' : 'DRAFT');
+        const idProofStatus = step5.idProofStatus || (step5.idProofVerified ? 'VERIFIED' : (m.idProofFileUrl ? 'PENDING_REVIEW' : 'NOT_UPLOADED'));
+
+        return {
+          id: m.id,
+          memberId: m.memberId,
+          firstName: m.firstName,
+          lastName: m.lastName,
+          gender: m.gender,
+          dateOfBirth: m.dateOfBirth,
+          mobile: m.user?.mobile,
+          email: m.user?.email,
+          packageType: m.packageType,
+          packageName: m.currentPackage?.name || (m.packageType === 'PAID' ? 'Paid Plan' : 'Free'),
+          packageExpiresAt: m.packageExpiresAt,
+          branchName: m.ownerOrg?.name || 'HQ Central',
+          branchId: m.ownerOrgId,
+          isBlocked: m.isBlocked,
+          blockedAt: m.blockedAt,
+          blockedReason: m.blockedReason,
+          blockedByStaff: m.blockedBy?.fullName || m.blockedBy?.employeeId || m.blockedBy?.mobile,
+          closureRequested: m.closureRequested,
+          closureReason: m.closureReason,
+          isFeatured: m.isFeatured,
+          featuredUntil: m.featuredUntil,
+          notesCount: m._count.internalNotes,
+          pendingUpdateRequests: m._count.updateRequests,
+          createdAt: m.createdAt,
+          idProofStatus,
+          idProofType: m.idProofType,
+          idProofNumber: m.idProofNumber,
+          idProofFileUrl: m.idProofFileUrl,
+          idProofRejectionReason: step5.idProofRejectionReason || step5.rejectionReason || null,
+          idProofVerifiedAt: step5.idProofVerifiedAt || null,
+          idProofVerifiedBy: step5.idProofVerifiedBy || null,
+          verificationStatus,
+          submittedForVerificationAt: step5.submittedForVerificationAt || m.updatedAt || m.createdAt,
+          completedSteps,
+          currentStep: m.currentStep,
+        };
+      }),
     };
   }
 
@@ -219,8 +254,10 @@ export class AdminMembersService {
       },
     });
 
-    // Simulated SMS notification
-    console.log(`📱 [SMS DISPATCH] To: ${profile.user.mobile} | Message: "Dear Member, your profile has been temporarily blocked (${reason}). Please contact support for assistance."`);
+    // Section 10: Automated SMS Notification to blocked member
+    if (this.eventNotificationsService) {
+      await this.eventNotificationsService.onProfileBlocked(profile.id, actor.id, reason);
+    }
 
     await this.auditService.log({
       actorId: actor.id,

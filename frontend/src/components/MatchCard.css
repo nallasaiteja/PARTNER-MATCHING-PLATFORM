@@ -1,274 +1,443 @@
+/* ==============================================================================
+   PARTNER MATCHING PLATFORM — HORIZONTAL MATCH PROFILE CARD
+   Theme: Luxury Matrimonial Horizontal Profile Row (Telugu Matrimony Style)
+   ============================================================================== */
+
 .match-card {
   background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  border-radius: 16px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
   overflow: hidden;
   display: flex;
-  flex-direction: column;
-  transition: transform 0.2s, box-shadow 0.2s;
+  flex-direction: row;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.2s ease;
+  position: relative;
+  width: 100%;
 }
 
 .match-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+  border-color: #cbd5e1;
+  box-shadow: 0 12px 24px -4px rgba(15, 23, 42, 0.1);
 }
 
+/* ─── Media Thumbnail Area (Left Column) ─── */
 .card-media-wrapper {
   position: relative;
-  width: 100%;
-  height: 200px;
+  width: 250px;
+  min-width: 250px;
+  min-height: 250px;
   background: #f1f5f9;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .profile-thumbnail {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
+  transition: transform 0.35s ease;
+}
+
+.match-card:hover .profile-thumbnail {
+  transform: scale(1.03);
 }
 
 .photo-hidden-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #475569;
-  gap: 8px;
-  padding: 16px;
+  gap: 10px;
+  padding: 24px;
   text-align: center;
 }
 
 .lock-icon {
-  font-size: 2rem;
+  font-size: 2.2rem;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .lock-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  line-height: 1.3;
 }
 
+/* Top Floating Badges over Photo */
 .card-top-badges {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  right: 10px;
+  top: 12px;
+  left: 12px;
+  right: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  z-index: 5;
 }
 
 .member-id-tag {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(4px);
-  color: #fff;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
   font-size: 0.75rem;
-  font-family: monospace;
+  font-family: var(--font-mono, monospace);
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .btn-shortlist-star {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
   border: none;
-  font-size: 16px;
-  width: 32px;
-  height: 32px;
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   cursor: pointer;
   color: #94a3b8;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.btn-shortlist-star:hover {
+  transform: scale(1.12);
+  color: #d4af37;
 }
 
 .btn-shortlist-star.starred {
   color: #f59e0b;
-  background: #fff;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
 }
 
+/* ─── Card Body (Right Side Details) ─── */
 .card-body {
-  padding: 16px;
+  padding: 22px 26px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   flex: 1;
+  min-width: 0;
+  gap: 14px;
+}
+
+.card-header-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .card-title-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 8px;
-}
-
-.candidate-name {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.candidate-age-gender {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #64748b;
-}
-
-.detail-tags-row {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.detail-pill {
-  font-size: 0.72rem;
+.name-and-verified {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.candidate-name {
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 1.35rem;
   font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.verified-check-badge {
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.72rem;
+  font-weight: 800;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 999px;
+  border: 1px solid #a7f3d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  letter-spacing: 0.3px;
+}
+
+.candidate-age-gender {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+/* Detail Tags Row */
+.detail-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-pill {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
 }
 
 .pill-caste {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #dbeafe;
+  background: #fdf2f4;
+  color: #800020;
+  border: 1px solid #fecdd3;
 }
 
 .pill-marital {
-  background: #fdf2f8;
-  color: #be185d;
-  border: 1px solid #fce7f3;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
+.pill-sub {
+  background: #fefce8;
+  color: #854d0e;
+  border: 1px solid #fef08a;
+}
+
+.pill-star {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+/* ─── 2-Column Key Attribute Grid ─── */
 .candidate-info-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.84rem;
-  margin-bottom: 14px;
-  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 24px;
+  font-size: 0.9rem;
+  background: #f8fafc;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid #edf2f7;
 }
 
 .info-line {
   display: flex;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
 }
 
 .info-key {
   color: #64748b;
+  font-weight: 600;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .info-val {
-  color: #1e293b;
-  font-weight: 600;
-  text-align: right;
+  color: #0f172a;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Card Bottom Row (Contact + Actions Toolbar) ─── */
+.card-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .contact-status-bar {
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin-bottom: 12px;
-  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  font-size: 0.88rem;
 }
 
 .revealed-phone-box {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: #15803d;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .hidden-phone-box {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   color: #64748b;
-  gap: 6px;
+  font-size: 0.84rem;
 }
 
 .btn-request-contact {
-  background: #e91e63;
-  color: #fff;
-  border: none;
-  font-size: 0.75rem;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 6px;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 4px;
+  font-size: 0.78rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-request-contact:hover {
+  background: #800020;
+  color: #ffffff;
+  border-color: #800020;
 }
 
 .card-feedback-banner {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-  font-size: 0.78rem;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.82rem;
   font-weight: 600;
-  padding: 6px;
-  border-radius: 6px;
-  text-align: center;
-  margin-bottom: 10px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  animation: fadeIn 0.2s ease;
 }
 
+/* Action Buttons Toolbar */
 .card-action-buttons {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
 }
 
 .btn-action-view {
-  flex: 1;
-  background: #0f172a;
-  color: #fff;
-  border: none;
-  padding: 8px;
-  border-radius: 6px;
-  font-size: 0.82rem;
-  font-weight: 600;
+  background: #f8fafc;
+  color: #1e293b;
+  border: 1.5px solid #cbd5e1;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .btn-action-view:hover {
-  background: #334155;
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
 }
 
 .btn-action-interest {
-  flex: 1;
-  background: #e91e63;
-  color: #fff;
+  background: linear-gradient(135deg, #800020 0%, #a11234 100%);
+  color: #ffffff;
   border: none;
-  padding: 8px;
-  border-radius: 6px;
-  font-size: 0.82rem;
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.2s;
+  box-shadow: 0 2px 6px rgba(128, 0, 32, 0.25);
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .btn-action-interest:hover:not(:disabled) {
-  opacity: 0.9;
+  background: linear-gradient(135deg, #650019 0%, #800020 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(128, 0, 32, 0.35);
 }
 
 .btn-action-interest.sent {
-  background: #10b981;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  box-shadow: none;
   cursor: default;
+}
+
+.btn-action-interest:disabled {
+  opacity: 0.85;
 }
 
 .btn-action-block {
   background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 0 8px;
-  font-size: 14px;
+  border: 1px solid #e2e8f0;
+  color: #94a3b8;
+  font-size: 1rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
 }
 
 .btn-action-block:hover {
   background: #fee2e2;
+  color: #dc2626;
   border-color: #fca5a5;
+}
+
+/* ─── Responsive for Tablets & Mobile ─── */
+@media (max-width: 860px) {
+  .match-card {
+    flex-direction: column;
+  }
+
+  .card-media-wrapper {
+    width: 100%;
+    min-width: 100%;
+    height: 280px;
+    min-height: 280px;
+  }
+
+  .candidate-info-list {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .card-bottom-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .card-action-buttons {
+    width: 100%;
+  }
+
+  .btn-action-view,
+  .btn-action-interest {
+    flex: 1;
+    text-align: center;
+  }
 }

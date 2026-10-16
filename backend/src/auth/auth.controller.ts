@@ -10,7 +10,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto, VerifyAdmin2faDto, VerifyAdminRecoveryCodeDto } from './dto/login.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
@@ -151,6 +151,32 @@ export class AuthController {
   logout(@CurrentUser() user: any, @Req() req: any) {
     const ipAddress = req.ip || req.headers['x-forwarded-for'];
     return this.authService.logout(user, ipAddress);
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // SECTION 12.1.A: ADMIN TWO-FACTOR AUTHENTICATION
+  // ──────────────────────────────────────────────────────────
+
+  @Post('admin/2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyAdmin2fa(@Body() dto: VerifyAdmin2faDto, @Req() req: any) {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'];
+    return this.authService.verifyAdmin2fa(dto, ipAddress);
+  }
+
+  @Post('admin/2fa/recovery')
+  @HttpCode(HttpStatus.OK)
+  async verifyAdminRecoveryCode(@Body() dto: VerifyAdminRecoveryCodeDto, @Req() req: any) {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'];
+    return this.authService.verifyAdminRecoveryCode(dto, ipAddress);
+  }
+
+  @Post('admin/2fa/setup')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async setupAdmin2fa(@CurrentUser() user: any, @Req() req: any) {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'];
+    return this.authService.setupAdmin2fa(user.id, ipAddress);
   }
 }
 

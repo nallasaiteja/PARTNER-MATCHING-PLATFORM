@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   ServiceUnavailableException,
@@ -16,7 +17,7 @@ import {
   Role,
 } from '../common/constants/roles.constants';
 import { AuditAction } from '@prisma/client';
-import { LoginDto } from './dto/login.dto';
+import { LoginDto, VerifyAdmin2faDto, VerifyAdminRecoveryCodeDto } from './dto/login.dto';
 import {
   RegisterMemberDto,
   RequestRegistrationOtpDto,
@@ -24,9 +25,13 @@ import {
   VerifyLoginOtpDto,
 } from './dto/member-auth.dto';
 import { SupabaseService } from '../supabase/supabase.service';
+import { SmsNotificationProvider } from '../notifications/providers/sms.provider';
+import { EmailNotificationProvider } from '../notifications/providers/email.provider';
 
 @Injectable()
 export class AuthService {
+  private readonly smsProvider = new SmsNotificationProvider();
+  private readonly emailProvider = new EmailNotificationProvider();
   private registrationOtps = new Map<
     string,
     { hash: string; expiresAt: Date; sentAt: Date; attempts: number }
@@ -37,7 +42,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly auditService: AuditService,
     private readonly supabaseService?: SupabaseService,
-  ) {}
+  ) { }
 
   async login(dto: LoginDto, ipAddress?: string) {
     let user: any = null;
@@ -85,6 +90,18 @@ export class AuthService {
       );
     }
 
+    // Role-based portal segregation (Ordinary members cannot log in via staff portal)
+    if (dto.portalType === 'STAFF' && user.role === 'MEMBER') {
+      throw new UnauthorizedException(
+        'Access denied: Ordinary members cannot access the staff portal. Please use Member Login.',
+      );
+    }
+    if (dto.portalType === 'MEMBER' && user.role !== 'MEMBER') {
+      throw new UnauthorizedException(
+        'Access denied: Staff accounts must log in via the Staff Login portal.',
+      );
+    }
+
     let accessToken: string;
     let refreshToken: string;
     let authenticatedViaSupabase = false;
@@ -112,11 +129,59 @@ export class AuthService {
         throw new UnauthorizedException('Invalid credentials');
       }
 
+      // Section 12.1.A: Mandatory 2FA for Admin Accounts (Super Admin and Admin)
+      if (user.role === Role.SUPER_ADMIN || user.role === Role.ADMIN) {
+        const code = String(randomInt(100000, 1000000));
+        const codeHash = await bcrypt.hash(code, 10);
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            twoFactorOtpHash: codeHash,
+            twoFactorOtpExpiresAt: expiresAt,
+            twoFactorOtpAttempts: 0,
+          },
+        });
+
+        const challengePayload = {
+          sub: user.id,
+          role: user.role,
+          twoFactorPending: true,
+        };
+
+        const challengeToken = this.jwtService.sign(challengePayload, {
+          secret: process.env.JWT_SECRET,
+          expiresIn: '5m',
+        });
+
+        console.log(`\n🔑 [ADMIN 2FA CHALLENGE] 6-digit verification code for ${user.role} (${user.mobile}): ${code}\n`);
+
+        await this.auditService.log({
+          actorId: user.id,
+          actorRole: user.role as any,
+          action: AuditAction.OTP_SENT,
+          resourceType: 'Admin2FA',
+          metadata: { mobile: user.mobile, channel: 'mobile' },
+          ipAddress,
+        });
+
+        return {
+          requires2fa: true,
+          challengeToken,
+          channel: 'mobile',
+          maskedMobile: user.mobile ? `${user.mobile.slice(0, 3)}****${user.mobile.slice(-2)}` : null,
+          message: 'Two-factor authentication required for Administrator access. Please enter the verification code sent to your registered mobile number.',
+          devCode: process.env.NODE_ENV !== 'production' ? code : undefined,
+        };
+      }
+
       const payload = {
         sub: user.id,
         role: user.role,
         status: user.status,
         orgId: user.organizationId,
+        is2faVerified: false,
       };
 
       accessToken = this.jwtService.sign(payload, {
@@ -167,14 +232,14 @@ export class AuthService {
       },
       memberProfile: memberProfile
         ? {
-            id: memberProfile.id,
-            memberId: memberProfile.memberId,
-            firstName: memberProfile.firstName,
-            lastName: memberProfile.lastName,
-            packageType: memberProfile.packageType,
-            currentStep: memberProfile.currentStep,
-            termsAccepted: memberProfile.termsAccepted,
-          }
+          id: memberProfile.id,
+          memberId: memberProfile.memberId,
+          firstName: memberProfile.firstName,
+          lastName: memberProfile.lastName,
+          packageType: memberProfile.packageType,
+          currentStep: memberProfile.currentStep,
+          termsAccepted: memberProfile.termsAccepted,
+        }
         : null,
     };
   }
@@ -250,11 +315,33 @@ export class AuthService {
     if (!user.email) throw new BadRequestException('No email address is registered');
     await this.enforceResendDelay(user.emailOtpSentAt);
     const code = String(randomInt(100000, 1000000));
-    await this.sendDeliveryWebhook('email', user.email, {
-      type: 'verification-otp',
-      code,
-      expiresInMinutes: 10,
-    });
+
+    // 1. Dispatch live via Brevo/SendGrid Email Provider
+    let dispatched = false;
+    try {
+      const dispatchRes = await this.emailProvider.dispatch({
+        type: 'OTP',
+        channel: 'EMAIL',
+        recipientContact: user.email,
+        recipientName: (user as any).fullName || 'Member',
+        title: 'Email Verification Code - Partner Matching Platform',
+        content: `Your email verification code is: <strong style="color: #e11d48; font-size: 20px; letter-spacing: 2px;">${code}</strong><br/><br/>This code will expire in 10 minutes. Please enter it on the platform to verify your email.`,
+      });
+      if (dispatchRes.success && !dispatchRes.simulated) {
+        dispatched = true;
+      }
+    } catch (err: any) {
+      console.warn(`[Email Verification Dispatch Warning]: ${err.message}`);
+    }
+
+    if (!dispatched && process.env.EMAIL_PROVIDER_WEBHOOK_URL) {
+      await this.sendDeliveryWebhook('email', user.email, {
+        type: 'verification-otp',
+        code,
+        expiresInMinutes: 10,
+      });
+    }
+
     await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -297,10 +384,11 @@ export class AuthService {
 
   async requestPasswordReset(email: string) {
     const deliveryUrl = process.env.EMAIL_PROVIDER_WEBHOOK_URL;
-    const frontendUrl = process.env.FRONTEND_BASE_URL;
-    if (!deliveryUrl || !frontendUrl) {
+    const frontendUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+    const hasEmailProvider = Boolean(process.env.BREVO_API_KEY || process.env.SENDGRID_API_KEY || deliveryUrl);
+    if (!hasEmailProvider) {
       throw new ServiceUnavailableException(
-        'Password reset requires EMAIL_PROVIDER_WEBHOOK_URL and FRONTEND_BASE_URL configuration',
+        'Password reset requires BREVO_API_KEY or EMAIL_PROVIDER_WEBHOOK_URL configuration',
       );
     }
 
@@ -327,11 +415,31 @@ export class AuthService {
     });
 
     try {
-      await this.sendDeliveryWebhook('email', email, {
-        type: 'password-reset',
-        resetUrl: `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${token}`,
-        expiresInMinutes: 30,
-      });
+      let dispatched = false;
+      if (process.env.BREVO_API_KEY || process.env.SENDGRID_API_KEY) {
+        const resetUrl = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${token}`;
+        const dispatchRes = await this.emailProvider.dispatch({
+          type: 'TRANSACTIONAL',
+          channel: 'EMAIL',
+          recipientContact: email,
+          title: 'Reset Your Password - Partner Matching Platform',
+          content: `We received a request to reset your password for your Partner Matching Platform account.<br/><br/>
+            <a href="${resetUrl}" style="display: inline-block; background-color: #e11d48; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; margin: 12px 0;">Reset My Password</a><br/><br/>
+            Or open the link directly:<br/><span style="color: #64748b; font-size: 13px;">${resetUrl}</span><br/><br/>
+            This reset link will expire in 30 minutes. If you did not make this request, you can safely ignore this email.`,
+        });
+        if (dispatchRes.success && !dispatchRes.simulated) {
+          dispatched = true;
+        }
+      }
+
+      if (!dispatched && deliveryUrl) {
+        await this.sendDeliveryWebhook('email', email, {
+          type: 'password-reset',
+          resetUrl: `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${token}`,
+          expiresInMinutes: 30,
+        });
+      }
     } catch {
       await this.prisma.user.update({
         where: { id: user.id },
@@ -506,6 +614,52 @@ export class AuthService {
       attempts: 0,
     });
 
+    // 1. If mobile and SMS Provider (Twilio / Fast2SMS) is active, dispatch live SMS OTP
+    if (isMobile) {
+      try {
+        const dispatchRes = await this.smsProvider.dispatch({
+          type: 'OTP',
+          channel: 'SMS',
+          recipientContact: recipient,
+          title: 'Registration Verification Code',
+          content: `[Partner Matching Platform] Your registration OTP is ${code}. Valid for 10 minutes. Do not share this code with anyone.`,
+        });
+
+        if (dispatchRes.success && !dispatchRes.simulated) {
+          return {
+            message: `Verification code sent via SMS to ${recipient}`,
+            providerConfigured: true,
+            provider: dispatchRes.provider,
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[SMS OTP Dispatch Warning]: ${err.message}`);
+      }
+    } else {
+      // 2. If email and Brevo / SendGrid Email Provider is active, dispatch live Email OTP
+      try {
+        const dispatchRes = await this.emailProvider.dispatch({
+          type: 'OTP',
+          channel: 'EMAIL',
+          recipientContact: recipient,
+          title: 'Registration Verification Code - Partner Matching Platform',
+          content: `Your verification code for registration is: <strong style="color: #e11d48; font-size: 20px; letter-spacing: 2px;">${code}</strong><br/><br/>This code will expire in 10 minutes. Please do not share this code with anyone.`,
+        });
+
+        if (dispatchRes.success && !dispatchRes.simulated) {
+          console.log(`\n📧 [BREVO EMAIL DISPATCHED] OTP for ${recipient}: ${code} (Message ID: ${dispatchRes.providerMessageId})\n`);
+          return {
+            message: `Verification code sent via Email to ${recipient}`,
+            providerConfigured: true,
+            provider: dispatchRes.provider,
+            devCode: code,
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[Email OTP Dispatch Warning]: ${err.message}`);
+      }
+    }
+
     const isWebhookConfigured = isMobile
       ? Boolean(process.env.SMS_PROVIDER_WEBHOOK_URL)
       : Boolean(process.env.EMAIL_PROVIDER_WEBHOOK_URL);
@@ -536,22 +690,26 @@ export class AuthService {
     const challenge = this.registrationOtps.get(recipient);
 
     if (!challenge) {
+      console.warn(`[Register Error] No active OTP found for "${recipient}". Active keys: [${Array.from(this.registrationOtps.keys()).join(', ')}]`);
       throw new UnauthorizedException('No OTP requested or code has expired. Please request a new code.');
     }
 
     if (challenge.expiresAt <= new Date()) {
       this.registrationOtps.delete(recipient);
+      console.warn(`[Register Error] OTP expired for "${recipient}"`);
       throw new UnauthorizedException('Verification code has expired. Please request a new code.');
     }
 
     if (challenge.attempts >= 5) {
       this.registrationOtps.delete(recipient);
+      console.warn(`[Register Error] Too many attempts for "${recipient}"`);
       throw new HttpException('Too many invalid attempts. Request a new code.', HttpStatus.TOO_MANY_REQUESTS);
     }
 
     const valid = await bcrypt.compare(dto.otpCode.trim(), challenge.hash);
     if (!valid) {
       challenge.attempts += 1;
+      console.warn(`[Register Error] Invalid OTP code submitted: "${dto.otpCode.trim()}" for "${recipient}"`);
       throw new UnauthorizedException('Invalid verification code');
     }
 
@@ -621,6 +779,8 @@ export class AuthService {
         gender: dto.gender,
         dateOfBirth: new Date(dto.dateOfBirth),
         createdByType: 'MEMBER',
+        registrationSource: dto.registrationSource || 'DIRECT',
+        attributionData: dto.attributionData || null,
         termsAccepted: true,
         termsAcceptedAt: new Date(),
         currentStep: 1,
@@ -687,6 +847,8 @@ export class AuthService {
         currentStep: profile.currentStep,
         termsAccepted: true,
         createdByType: 'MEMBER',
+        registrationSource: profile.registrationSource,
+        attributionData: profile.attributionData,
       },
     };
   }
@@ -730,6 +892,42 @@ export class AuthService {
     await this.enforceResendDelay(isMobile ? user.mobileOtpSentAt : user.emailOtpSentAt);
 
     const code = String(randomInt(100000, 1000000));
+
+    // 1. If mobile and SMS Provider (Twilio / Fast2SMS) is active, dispatch live SMS OTP
+    if (isMobile) {
+      try {
+        const dispatchRes = await this.smsProvider.dispatch({
+          type: 'OTP',
+          channel: 'SMS',
+          recipientContact: targetRecipient,
+          title: 'Login OTP',
+          content: `[Partner Matching Platform] Your login OTP is ${code}. Valid for 10 minutes. Do not share this code with anyone.`,
+        });
+        if (dispatchRes.success && !dispatchRes.simulated) {
+          console.log(`📱 Live SMS Login OTP delivered to ${targetRecipient} via ${dispatchRes.provider}`);
+        }
+      } catch (err: any) {
+        console.warn(`[SMS Login OTP Dispatch Warning]: ${err.message}`);
+      }
+    } else {
+      // 2. If email and Brevo / SendGrid Email Provider is active, dispatch live Email OTP
+      try {
+        const dispatchRes = await this.emailProvider.dispatch({
+          type: 'OTP',
+          channel: 'EMAIL',
+          recipientContact: targetRecipient,
+          recipientName: (user as any).fullName || 'Member',
+          title: 'Login OTP - Partner Matching Platform',
+          content: `Your login verification code is: <strong style="color: #e11d48; font-size: 20px; letter-spacing: 2px;">${code}</strong><br/><br/>This code will expire in 10 minutes. Please do not share this code with anyone.`,
+        });
+        if (dispatchRes.success && !dispatchRes.simulated) {
+          console.log(`📧 Live Email Login OTP delivered to ${targetRecipient} via ${dispatchRes.provider}`);
+        }
+      } catch (err: any) {
+        console.warn(`[Email Login OTP Dispatch Warning]: ${err.message}`);
+      }
+    }
+
     const isWebhookConfigured = isMobile
       ? Boolean(process.env.SMS_PROVIDER_WEBHOOK_URL)
       : Boolean(process.env.EMAIL_PROVIDER_WEBHOOK_URL);
@@ -852,14 +1050,14 @@ export class AuthService {
       },
       memberProfile: memberProfile
         ? {
-            id: memberProfile.id,
-            memberId: memberProfile.memberId,
-            firstName: memberProfile.firstName,
-            lastName: memberProfile.lastName,
-            packageType: memberProfile.packageType,
-            currentStep: memberProfile.currentStep,
-            termsAccepted: memberProfile.termsAccepted,
-          }
+          id: memberProfile.id,
+          memberId: memberProfile.memberId,
+          firstName: memberProfile.firstName,
+          lastName: memberProfile.lastName,
+          packageType: memberProfile.packageType,
+          currentStep: memberProfile.currentStep,
+          termsAccepted: memberProfile.termsAccepted,
+        }
         : null,
     };
   }
@@ -903,6 +1101,264 @@ export class AuthService {
       ipAddress,
     });
     return { message: 'Logged out successfully' };
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // SECTION 12.1.A: ADMIN TWO-FACTOR AUTHENTICATION
+  // ──────────────────────────────────────────────────────────
+
+  async verifyAdmin2fa(dto: VerifyAdmin2faDto, ipAddress?: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(dto.challengeToken, {
+        secret: process.env.JWT_SECRET,
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired 2FA challenge token. Please login again.');
+    }
+
+    if (!payload.twoFactorPending || !payload.sub) {
+      throw new UnauthorizedException('Invalid 2FA challenge token.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { organization: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found.');
+    }
+
+    if (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN) {
+      throw new UnauthorizedException('2FA verification only applies to administrative roles.');
+    }
+
+    if (user.twoFactorOtpAttempts >= 3) {
+      throw new UnauthorizedException('Maximum 2FA verification attempts exceeded. Please login again.');
+    }
+
+    if (!user.twoFactorOtpExpiresAt || user.twoFactorOtpExpiresAt < new Date()) {
+      throw new UnauthorizedException('2FA verification code has expired. Please login again.');
+    }
+
+    const isMatch = user.twoFactorOtpHash
+      ? await bcrypt.compare(dto.code, user.twoFactorOtpHash)
+      : false;
+
+    if (!isMatch) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          twoFactorOtpAttempts: { increment: 1 },
+        },
+      });
+
+      await this.auditService.log({
+        actorId: user.id,
+        actorRole: user.role as any,
+        action: AuditAction.LOGIN,
+        resourceType: 'Admin2FA',
+        metadata: { success: false, reason: 'Invalid 2FA code', attempt: user.twoFactorOtpAttempts + 1 },
+        ipAddress,
+      });
+
+      throw new UnauthorizedException('Invalid 2FA verification code.');
+    }
+
+    // Success! Clear challenge fields and issue admin token
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        twoFactorOtpHash: null,
+        twoFactorOtpExpiresAt: null,
+        twoFactorOtpAttempts: 0,
+      },
+    });
+
+    const jwtPayload = {
+      sub: user.id,
+      role: user.role,
+      status: user.status,
+      orgId: user.organizationId,
+      is2faVerified: true,
+    };
+
+    const accessToken = this.jwtService.sign(jwtPayload, {
+      secret: process.env.JWT_SECRET,
+      expiresIn: '8h',
+    });
+
+    const refreshToken = this.jwtService.sign(jwtPayload, {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: '7d',
+    });
+
+    await this.auditService.log({
+      actorId: user.id,
+      actorRole: user.role as any,
+      action: AuditAction.TWO_FACTOR_VERIFY,
+      resourceType: 'Session',
+      orgId: user.organizationId,
+      metadata: { twoFactorVerified: true },
+      ipAddress,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        mobile: user.mobile,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        staffDivision: user.staffDivision,
+        organizationId: user.organizationId,
+        organization: user.organization
+          ? { id: user.organization.id, name: user.organization.name, type: user.organization.type }
+          : null,
+      },
+      is2faVerified: true,
+    };
+  }
+
+  async verifyAdminRecoveryCode(dto: VerifyAdminRecoveryCodeDto, ipAddress?: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(dto.challengeToken, {
+        secret: process.env.JWT_SECRET,
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired 2FA challenge token. Please login again.');
+    }
+
+    if (!payload.twoFactorPending || !payload.sub) {
+      throw new UnauthorizedException('Invalid 2FA challenge token.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { organization: true },
+    });
+
+    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
+      throw new UnauthorizedException('User not found or unauthorized.');
+    }
+
+    const enteredCode = dto.recoveryCode.trim().toUpperCase();
+    let matchedIndex = -1;
+
+    for (let i = 0; i < (user.twoFactorBackupCodes || []).length; i++) {
+      const codeHash = user.twoFactorBackupCodes[i];
+      if (await bcrypt.compare(enteredCode, codeHash)) {
+        matchedIndex = i;
+        break;
+      }
+    }
+
+    if (matchedIndex === -1) {
+      throw new UnauthorizedException('Invalid emergency recovery backup code.');
+    }
+
+    // Consume the used backup code
+    const updatedCodes = [...user.twoFactorBackupCodes];
+    updatedCodes.splice(matchedIndex, 1);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        twoFactorBackupCodes: updatedCodes,
+        twoFactorOtpHash: null,
+        twoFactorOtpExpiresAt: null,
+        twoFactorOtpAttempts: 0,
+      },
+    });
+
+    const jwtPayload = {
+      sub: user.id,
+      role: user.role,
+      status: user.status,
+      orgId: user.organizationId,
+      is2faVerified: true,
+    };
+
+    const accessToken = this.jwtService.sign(jwtPayload, {
+      secret: process.env.JWT_SECRET,
+      expiresIn: '8h',
+    });
+
+    const refreshToken = this.jwtService.sign(jwtPayload, {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: '7d',
+    });
+
+    await this.auditService.log({
+      actorId: user.id,
+      actorRole: user.role as any,
+      action: AuditAction.TWO_FACTOR_RECOVERY,
+      resourceType: 'Session',
+      metadata: { remainingBackupCodes: updatedCodes.length },
+      ipAddress,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        mobile: user.mobile,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        staffDivision: user.staffDivision,
+        organizationId: user.organizationId,
+      },
+      is2faVerified: true,
+      remainingBackupCodes: updatedCodes.length,
+    };
+  }
+
+  async setupAdmin2fa(adminUserId: string, ipAddress?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: adminUserId },
+    });
+    if (!user || (user.role !== Role.SUPER_ADMIN && user.role !== Role.ADMIN)) {
+      throw new ForbiddenException('Only Administrators can configure two-factor authentication.');
+    }
+
+    // Generate 5 emergency backup codes (8 characters)
+    const backupCodes: string[] = [];
+    const hashedCodes: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+      backupCodes.push(code);
+      hashedCodes.push(await bcrypt.hash(code, 12));
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorBackupCodes: hashedCodes,
+        twoFactorEnrolledAt: new Date(),
+      },
+    });
+
+    await this.auditService.log({
+      actorId: user.id,
+      actorRole: user.role as any,
+      action: AuditAction.TWO_FACTOR_SETUP,
+      resourceType: 'UserSecurity',
+      metadata: { backupCodesGenerated: 5 },
+      ipAddress,
+    });
+
+    return {
+      success: true,
+      backupCodes,
+      message: 'Two-factor authentication configured. Store these 5 emergency recovery codes securely. Each can be used once if you lose access to your primary device.',
+    };
   }
 }
 

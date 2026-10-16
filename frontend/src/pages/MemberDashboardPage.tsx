@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchMemberDashboard } from '../services/memberApi';
+import { MemberSuggestedProfilesSection } from '../components/MemberSuggestedProfilesSection';
 import './MemberDashboardPage.css';
 
 export const MemberDashboardPage: React.FC = () => {
@@ -71,6 +72,56 @@ export const MemberDashboardPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ID Proof Rejection Alert (Task 1) */}
+      {data.verification?.idProofStatus === 'REJECTED' && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%)',
+            border: '1.5px solid #fecaca',
+            borderRadius: '16px',
+            padding: '20px 24px',
+            marginBottom: '24px',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flex: 1, minWidth: '260px' }}>
+            <span style={{ fontSize: '28px', lineHeight: 1 }}>⚠️</span>
+            <div>
+              <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 700, color: '#991b1b' }}>
+                Action Required: Your ID Proof Verification Was Rejected
+              </h4>
+              <p style={{ margin: '0 0 6px 0', fontSize: '13px', color: '#b91c1c', lineHeight: 1.5 }}>
+                <strong>Rejection Reason:</strong> {data.verification?.idProofRejectionReason || 'The uploaded document did not meet verification criteria.'}
+              </p>
+              <p style={{ margin: 0, fontSize: '12px', color: '#7f1d1d' }}>
+                Please review the reason and submit a clear, valid government-issued ID proof document so your profile can be fully verified.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/member/profile"
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#dc2626',
+              color: '#ffffff',
+              borderRadius: '8px',
+              fontWeight: 600,
+              fontSize: '13px',
+              textDecoration: 'none',
+              boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Correct & Resubmit Proof →
+          </Link>
+        </div>
+      )}
 
       {/* Profile Completion Section (Section 4.2) */}
       <div className="completion-card">
@@ -242,6 +293,9 @@ export const MemberDashboardPage: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* Section 11.5: Suggested Profiles for Eligible Members */}
+      <MemberSuggestedProfilesSection />
     </div>
   );
 };

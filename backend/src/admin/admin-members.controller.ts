@@ -39,7 +39,7 @@ export class AdminMembersController {
   )
   listMembers(
     @CurrentUser() user: any,
-    @Query('type') type?: 'ALL' | 'FREE' | 'PAID' | 'BLOCKED' | 'TERMINATED' | 'CONVERTED',
+    @Query('type') type?: 'ALL' | 'FREE' | 'PAID' | 'BLOCKED' | 'TERMINATED' | 'CONVERTED' | 'PENDING_VERIFICATION',
     @Query('search') search?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,

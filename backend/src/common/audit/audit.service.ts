@@ -58,6 +58,43 @@ export class AuditService {
       take: limit,
     });
   }
+
+  async queryAuditLogs(filter: {
+    actorId?: string;
+    action?: AuditAction;
+    resourceType?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const where: any = {};
+    if (filter.actorId) where.actorId = filter.actorId;
+    if (filter.action) where.action = filter.action as any;
+    if (filter.resourceType) where.resourceType = filter.resourceType;
+    if (filter.startDate || filter.endDate) {
+      where.createdAt = {};
+      if (filter.startDate) where.createdAt.gte = new Date(filter.startDate);
+      if (filter.endDate) where.createdAt.lte = new Date(filter.endDate);
+    }
+
+    const [total, logs] = await Promise.all([
+      this.prisma.auditLog.count({ where }),
+      this.prisma.auditLog.findMany({
+        where,
+        include: {
+          actor: {
+            select: { id: true, mobile: true, email: true, role: true, employeeId: true, fullName: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: filter.limit || 50,
+        skip: filter.offset || 0,
+      }),
+    ]);
+
+    return { total, logs };
+  }
 }
 
 // Re-export AuditAction for use in other files

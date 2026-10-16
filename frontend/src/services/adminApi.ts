@@ -2,18 +2,9 @@
  * HQ Admin Panel API Service — Section 5
  */
 
-const API_BASE = '/api/v1';
+import { API_BASE_URL, getAuthHeaders } from './apiConfig';
 
-function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
+const API_BASE = API_BASE_URL;
 
 async function request<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -133,7 +124,7 @@ export async function setStaffAccessRules(staffId: string, data: {
 // ─── 5.3 MEMBER MANAGEMENT ───────────────────────────────────
 
 export async function fetchAdminMemberList(params: {
-  type?: 'ALL' | 'FREE' | 'PAID' | 'BLOCKED' | 'TERMINATED' | 'CONVERTED';
+  type?: 'ALL' | 'FREE' | 'PAID' | 'BLOCKED' | 'TERMINATED' | 'CONVERTED' | 'PENDING_VERIFICATION';
   search?: string;
   page?: number;
   limit?: number;
@@ -144,6 +135,16 @@ export async function fetchAdminMemberList(params: {
   if (params.page) query.set('page', params.page.toString());
   if (params.limit) query.set('limit', params.limit.toString());
   return request(`/admin/members?${query.toString()}`);
+}
+
+export async function verifyAdminIdProof(
+  profileId: string,
+  data: { verified: boolean; rejectionReason?: string },
+) {
+  return request(`/profiles/${profileId}/verify-id-proof`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 export async function blockMember(memberProfileId: string, reason: string) {

@@ -262,3 +262,48 @@
   font-size: 0.875rem;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (TABLETS & MOBILE)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .staff-mgmt-root {
+    gap: 16px;
+    padding-bottom: 24px;
+  }
+
+  .staff-header-panel {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .create-staff-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .staff-tabs {
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .staff-tab {
+    padding: 8px 12px;
+    font-size: 0.825rem;
+    white-space: nowrap;
+  }
+
+  .staff-modal-content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 18px !important;
+    margin: 10px auto;
+  }
+
+  .modal-two-col {
+    grid-template-columns: 1fr !important;
+  }
+}

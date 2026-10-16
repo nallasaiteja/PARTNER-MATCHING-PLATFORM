@@ -1,4 +1,6 @@
-const API_BASE = '/api/v1/locations';
+import { API_BASE_URL, getAuthorizationHeader } from './apiConfig';
+
+const API_BASE = `${API_BASE_URL}/locations`;
 
 export interface LocationOption {
   id: string;
@@ -8,12 +10,11 @@ export interface LocationOption {
 }
 
 export async function fetchLocationChildren(parentId?: string): Promise<LocationOption[]> {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
   const query = new URLSearchParams();
   if (parentId) query.set('parentId', parentId);
 
   const response = await fetch(`${API_BASE}${query.size ? `?${query}` : ''}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: getAuthorizationHeader(),
   });
 
   if (!response.ok) {

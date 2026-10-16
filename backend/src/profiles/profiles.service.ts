@@ -159,6 +159,18 @@ export class ProfilesService {
       orgId: actor.organizationId,
     });
 
+    try {
+      await this.prisma.staffProfileVisit.create({
+        data: {
+          staffId: actor.id,
+          memberProfileId: profileId,
+          branchOrgId: actor.organizationId || null,
+        },
+      });
+    } catch (err: any) {
+      // Non-blocking visit logging
+    }
+
     return this.serializeProfileForActor(profile, actor);
   }
 
@@ -301,6 +313,17 @@ export class ProfilesService {
 
     const memberId = `M${new Date().getFullYear()}${String(Date.now()).slice(-6)}`;
 
+    const isCompleted = dto.completedSteps?.includes(5) || (Array.isArray(dto.completedSteps) && dto.completedSteps.length >= 5) || dto.currentStep === 5;
+    if (isCompleted) {
+      if (!profileData) profileData = {};
+      if (!profileData.step5) profileData.step5 = {};
+      profileData.step5.verificationStatus = 'PENDING_VERIFICATION';
+      profileData.step5.submittedForVerificationAt = new Date().toISOString();
+      if (dto.idProofFileUrl) {
+        profileData.step5.idProofStatus = 'PENDING_REVIEW';
+      }
+    }
+
     const profile = await this.prisma.memberProfile.create({
       data: {
         memberId,
@@ -401,21 +424,58 @@ export class ProfilesService {
     );
 
     const existingProfileData = (existing.profileData as Record<string, any>) || {};
-    const mergedProfileData = (profilePaymentDateUpdate.profileData
+    const mergedProfileData = ((profilePaymentDateUpdate.profileData
       ? { ...existingProfileData, ...profilePaymentDateUpdate.profileData }
-      : existing.profileData) as Record<string, any> | null;
-    if (mergedProfileData && profileData?.step5) {
-      const storedStep5 = existingProfileData.step5 || {};
-      mergedProfileData.step5 = {
-        ...mergedProfileData.step5,
-        mobileVerified: Boolean(existing.user?.mobileVerified),
-        emailVerified: Boolean(existing.user?.emailVerified),
-        idProofUploaded: Boolean(existing.idProofFileUrl),
-        idProofVerified: storedStep5.idProofVerified || false,
-        idProofVerifiedAt: storedStep5.idProofVerifiedAt,
-        idProofVerifiedBy: storedStep5.idProofVerifiedBy,
-      };
+      : existing.profileData) || {}) as Record<string, any>;
+
+    const storedStep5 = existingProfileData.step5 || {};
+    const incomingStep5 = profileData?.step5 || {};
+    const effectiveCompletedSteps: number[] = Array.isArray(dto.completedSteps)
+      ? (dto.completedSteps as number[])
+      : Array.isArray(existing.completedSteps)
+      ? (existing.completedSteps as number[])
+      : [];
+    const isStep5Completed = effectiveCompletedSteps.includes(5) || dto.currentStep === 5;
+    const hasProof = Boolean(dto.idProofFileUrl || existing.idProofFileUrl);
+    const isAlreadyVerified = storedStep5.idProofVerified === true;
+    const hasNewProofUploaded = Boolean(dto.idProofFileUrl && dto.idProofFileUrl !== existing.idProofFileUrl);
+    const isExplicitPending = incomingStep5.verificationStatus === 'PENDING_VERIFICATION';
+
+    let nextVerificationStatus = storedStep5.verificationStatus || (isStep5Completed ? 'PENDING_VERIFICATION' : 'DRAFT');
+    let nextIdProofStatus = storedStep5.idProofStatus || (isAlreadyVerified ? 'VERIFIED' : (hasProof ? 'PENDING_REVIEW' : 'NOT_UPLOADED'));
+
+    if (!isAlreadyVerified) {
+      if (isStep5Completed || isExplicitPending || hasNewProofUploaded) {
+        nextVerificationStatus = 'PENDING_VERIFICATION';
+        if (hasProof) {
+          nextIdProofStatus = 'PENDING_REVIEW';
+        }
+      }
+    } else {
+      nextVerificationStatus = 'VERIFIED';
+      nextIdProofStatus = 'VERIFIED';
     }
+
+    mergedProfileData.step5 = {
+      ...storedStep5,
+      ...incomingStep5,
+      mobileVerified: Boolean(existing.user?.mobileVerified),
+      emailVerified: Boolean(existing.user?.emailVerified),
+      idProofUploaded: hasProof,
+      idProofVerified: isAlreadyVerified,
+      idProofVerifiedAt: storedStep5.idProofVerifiedAt,
+      idProofVerifiedBy: storedStep5.idProofVerifiedBy,
+      idProofStatus: isAlreadyVerified
+        ? 'VERIFIED'
+        : (storedStep5.idProofStatus === 'REJECTED' && !hasNewProofUploaded && !isExplicitPending
+          ? 'REJECTED'
+          : nextIdProofStatus),
+      idProofRejectionReason: storedStep5.idProofRejectionReason,
+      verificationStatus: isAlreadyVerified ? 'VERIFIED' : nextVerificationStatus,
+      submittedForVerificationAt: (isStep5Completed || isExplicitPending)
+        ? (storedStep5.submittedForVerificationAt || new Date().toISOString())
+        : storedStep5.submittedForVerificationAt,
+    };
 
     const updated = await this.prisma.memberProfile.update({
       where: { id: profileId },
@@ -489,6 +549,7 @@ export class ProfilesService {
     actor: any,
     profileId: string,
     verified: boolean,
+    rejectionReason?: string,
     ipAddress?: string,
   ) {
     const allowedRoles = [Role.SUPER_ADMIN, Role.ADMIN, Role.BRANCH_MANAGER];
@@ -498,6 +559,7 @@ export class ProfilesService {
 
     const existing = await this.prisma.memberProfile.findUnique({
       where: { id: profileId },
+      include: { user: true },
     });
     if (!existing) throw new NotFoundException('Profile not found');
     if (!existing.idProofFileUrl) {
@@ -512,14 +574,29 @@ export class ProfilesService {
       );
     }
 
+    // Require meaningful rejection reason when rejecting
+    if (!verified) {
+      if (!rejectionReason || rejectionReason.trim().length < 5) {
+        throw new BadRequestException(
+          'A meaningful rejection reason (at least 5 characters) is required when rejecting an ID proof',
+        );
+      }
+    }
+
     const profileData = (existing.profileData as Record<string, any>) || {};
     const step5 = {
       ...(profileData.step5 || {}),
       idProofUploaded: true,
       idProofVerified: verified,
-      idProofVerifiedAt: new Date().toISOString(),
-      idProofVerifiedBy: actor.id,
+      idProofStatus: verified ? 'VERIFIED' : 'REJECTED',
+      idProofRejectionReason: !verified ? rejectionReason!.trim() : null,
+      idProofVerifiedAt: verified ? new Date().toISOString() : undefined,
+      idProofVerifiedBy: verified ? actor.id : undefined,
+      idProofRejectedAt: !verified ? new Date().toISOString() : undefined,
+      idProofRejectedBy: !verified ? actor.id : undefined,
+      verificationStatus: verified ? 'VERIFIED' : 'REJECTED',
     };
+
     const updated = await this.prisma.memberProfile.update({
       where: { id: profileId },
       data: { profileData: { ...profileData, step5 } as any },
@@ -534,11 +611,52 @@ export class ProfilesService {
       orgId: actor.organizationId,
       metadata: {
         idProofVerified: verified,
-        idProofVerifiedAt: step5.idProofVerifiedAt,
-        idProofVerifiedBy: actor.id,
+        idProofStatus: verified ? 'VERIFIED' : 'REJECTED',
+        rejectionReason: !verified ? rejectionReason!.trim() : null,
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: actor.id,
       },
       ipAddress,
     });
+
+    // Notify member of verification decision
+    if (existing.userId) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const idempotencyKey = `ID_VERIFY_DECISION_${profileId}_${verified ? 'APPROVED' : 'REJECTED'}_${Date.now()}`;
+      const title = verified ? 'ID Proof Verified! 🛡️' : 'ID Proof Verification Rejected ⚠️';
+      const content = verified
+        ? 'Your government ID proof has been verified by the administration. Your profile is now verified.'
+        : `Your government ID proof was rejected: "${rejectionReason!.trim()}". Please review the feedback and upload a valid document to complete verification.`;
+
+      await this.prisma.notificationLog.upsert({
+        where: { idempotencyKey },
+        create: {
+          type: 'ID_PROOF_VERIFICATION',
+          channel: 'APP_PUSH',
+          recipientUserId: existing.userId,
+          recipientMemberProfileId: profileId,
+          recipientContact: existing.user?.mobile || existing.userId,
+          recipientName: `${existing.firstName} ${existing.lastName}`,
+          title,
+          content,
+          status: 'SENT',
+          provider: 'SYSTEM_INTERNAL',
+          idempotencyKey,
+          metadata: {
+            profileId,
+            verified,
+            rejectionReason: !verified ? rejectionReason!.trim() : null,
+            reviewerRole: actor.role,
+          },
+          sentAt: new Date(),
+        },
+        update: {
+          sentAt: new Date(),
+          content,
+        },
+      });
+    }
+
     return updated;
   }
 

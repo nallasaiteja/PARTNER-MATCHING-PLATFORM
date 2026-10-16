@@ -7,12 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService, AuditAction } from '../common/audit/audit.service';
 import { Role, RoleType } from '../common/constants/roles.constants';
+import { EventNotificationsService } from '../notifications/event-notifications.service';
 
 @Injectable()
 export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly eventNotificationsService?: EventNotificationsService,
   ) {}
 
   /**
@@ -34,8 +36,11 @@ export class TicketsService {
    * Only HQ_SERVICE_TEAM (and admins) can close tickets.
    */
   async requestTicketClosure(actor: any, ticketId: string, ipAddress?: string) {
-    const actorRole = actor.role as RoleType;
+    if (this.eventNotificationsService) {
+      return this.eventNotificationsService.requestTicketClosureOtp(actor, ticketId, ipAddress);
+    }
 
+    const actorRole = actor.role as RoleType;
     if (
       actorRole !== Role.HQ_SERVICE_TEAM &&
       actorRole !== Role.SUPER_ADMIN &&
@@ -63,15 +68,11 @@ export class TicketsService {
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // In production: send via SMS gateway
-    // For now: store OTP hash (never log plain OTP)
-    const otpHash = otp; // TODO: hash in production
-
     await this.prisma.supportTicket.update({
       where: { id: ticketId },
       data: {
         status: 'PENDING_OTP',
-        closureOtp: otpHash,
+        closureOtp: otp,
         closureOtpSentAt: new Date(),
       },
     });
@@ -87,13 +88,10 @@ export class TicketsService {
       ipAddress,
     });
 
-    // In production: SMS sent here
     return {
       message: 'OTP sent to member mobile',
       ticketId,
-      // DO NOT expose OTP in response in production
-      // exposing here ONLY for development/testing
-      devOtp: process.env.NODE_ENV === 'development' ? otp : undefined,
+      devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
     };
   }
 
@@ -107,8 +105,11 @@ export class TicketsService {
     otp: string,
     ipAddress?: string,
   ) {
-    const actorRole = actor.role as RoleType;
+    if (this.eventNotificationsService) {
+      return this.eventNotificationsService.verifyOtpAndClose(actor, ticketId, otp, ipAddress);
+    }
 
+    const actorRole = actor.role as RoleType;
     if (
       actorRole !== Role.HQ_SERVICE_TEAM &&
       actorRole !== Role.SUPER_ADMIN &&
@@ -132,7 +133,6 @@ export class TicketsService {
       throw new ForbiddenException('Invalid OTP');
     }
 
-    // Check OTP expiry (10 minutes)
     const otpAge = Date.now() - (ticket.closureOtpSentAt?.getTime() || 0);
     if (otpAge > 10 * 60 * 1000) {
       throw new BadRequestException('OTP has expired. Please request a new one.');
@@ -143,7 +143,7 @@ export class TicketsService {
       data: {
         status: 'CLOSED',
         closureOtpVerifiedAt: new Date(),
-        closureOtp: null, // clear OTP after use
+        closureOtp: null,
       },
     });
 

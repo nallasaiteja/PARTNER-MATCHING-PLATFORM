@@ -3,39 +3,62 @@
  * Handles communication with backend /api/v1/profiles endpoints.
  */
 
-const API_BASE = '/api/v1';
+import {
+  API_BASE_URL,
+  getAuthHeaders,
+  getAuthorizationHeader,
+  validateUploadFile,
+  uploadWithProgress,
+} from './apiConfig';
 
-function getAuthHeaders(): HeadersInit {
-  const token =
-    localStorage.getItem('accessToken') ||
-    localStorage.getItem('token');
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+const API_BASE = API_BASE_URL;
+
+export async function uploadIdProof(
+  profileId: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<{ url: string; filename: string }> {
+  const validation = validateUploadFile(file, {
+    maxBytes: 5 * 1024 * 1024,
+    allowedMimes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+    label: 'ID proof document',
+  });
+  if (!validation.valid) {
+    throw new Error(validation.error);
   }
-  return headers;
-}
 
-function getAuthorizationHeader(): HeadersInit {
-  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-export async function uploadIdProof(profileId: string, file: File): Promise<{ url: string; filename: string }> {
   const body = new FormData();
   body.append('idProof', file);
-  const response = await fetch(`${API_BASE}/uploads/id-proof/${profileId}`, {
-    method: 'POST',
-    headers: getAuthorizationHeader(),
+
+  return uploadWithProgress<{ url: string; filename: string }>(
+    `${API_BASE}/uploads/id-proof/${profileId}`,
     body,
+    onProgress,
+  );
+}
+
+export async function uploadProfilePhoto(
+  profileId: string,
+  file: File | Blob,
+  onProgress?: (percent: number) => void,
+): Promise<{ url: string; filename: string }> {
+  const validation = validateUploadFile(file, {
+    maxBytes: 500 * 1024,
+    allowedMimes: ['image/jpeg', 'image/png', 'image/webp'],
+    label: 'Profile photo',
   });
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to upload ID proof (${response.status})`);
+  if (!validation.valid) {
+    throw new Error(validation.error);
   }
-  return response.json();
+
+  const body = new FormData();
+  body.append('photo', file, 'profile-photo.jpg');
+
+  return uploadWithProgress<{ url: string; filename: string }>(
+    `${API_BASE}/uploads/photo/${profileId}`,
+    body,
+    onProgress,
+  );
 }
 
 export async function downloadIdProof(profileId: string): Promise<Blob> {
@@ -49,11 +72,15 @@ export async function downloadIdProof(profileId: string): Promise<Blob> {
   return response.blob();
 }
 
-export async function verifyIdProof(profileId: string, verified: boolean): Promise<any> {
+export async function verifyIdProof(
+  profileId: string,
+  verified: boolean,
+  rejectionReason?: string,
+): Promise<any> {
   const response = await fetch(`${API_BASE}/profiles/${profileId}/id-proof/verification`, {
     method: 'PATCH',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ verified }),
+    body: JSON.stringify({ verified, rejectionReason }),
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

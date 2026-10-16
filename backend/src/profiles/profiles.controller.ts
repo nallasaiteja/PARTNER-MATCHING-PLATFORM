@@ -116,7 +116,13 @@ export class ProfilesController {
     @Body() dto: VerifyIdProofDto,
     @Req() req: any,
   ) {
-    return this.profilesService.verifyIdProof(user, id, dto.verified, req.ip);
+    return this.profilesService.verifyIdProof(
+      user,
+      id,
+      dto.verified,
+      dto.rejectionReason,
+      req.ip,
+    );
   }
 
   /**

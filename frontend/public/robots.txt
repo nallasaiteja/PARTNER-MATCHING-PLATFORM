@@ -1,0 +1,20 @@
+# Robots.txt for Partner Matching Platform
+# https://partnermatchingplatform.com
+
+User-agent: *
+Allow: /
+Allow: /success-stories
+Allow: /careers
+Allow: /wedding-services
+Allow: /about
+Allow: /contact
+
+# Disallow private user portals, admin shells, and authentication endpoints
+Disallow: /admin/
+Disallow: /branch/
+Disallow: /franchise/
+Disallow: /agent/
+Disallow: /member/
+Disallow: /api/
+
+Sitemap: https://partnermatchingplatform.com/sitemap.xml

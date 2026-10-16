@@ -116,94 +116,100 @@ export const MatchedViewPage: React.FC = () => {
           </Link>
         </div>
       ) : (
-        <div className="browsing-main-layout">
-          {/* Filter Sidebar */}
-          <form onSubmit={handleFilterSubmit} className="filter-sidebar">
-            <div className="filter-sidebar-header">
-              <h3>Filter Matches</h3>
-              <button type="button" onClick={handleClearFilters} className="btn-clear-filters">
-                Clear All
-              </button>
-            </div>
-
-            <div className="filter-group">
-              <label>Caste</label>
-              <input
-                type="text"
-                placeholder="e.g. Brahmin, Reddy"
-                value={filters.caste}
-                onChange={(e) => setFilters({ ...filters, caste: e.target.value })}
-              />
-            </div>
-
-            <div className="filter-group">
-              <label>Marital Status</label>
-              <select
-                value={filters.maritalStatus}
-                onChange={(e) => setFilters({ ...filters, maritalStatus: e.target.value })}
-              >
-                <option value="">Any Status</option>
-                <option value="Unmarried">Unmarried</option>
-                <option value="Divorced">Divorced</option>
-                <option value="Widowed">Widowed</option>
-              </select>
-            </div>
-
-            <div className="filter-group">
-              <label>Age Range</label>
-              <div className="age-range-inputs">
-                <input
-                  type="number"
-                  placeholder="Min"
-                  value={filters.ageMin}
-                  onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })}
-                />
-                <span>-</span>
-                <input
-                  type="number"
-                  placeholder="Max"
-                  value={filters.ageMax}
-                  onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })}
-                />
+        <div className="matched-horizontal-page-layout">
+          {/* Top Horizontal Filter Bar */}
+          <form onSubmit={handleFilterSubmit} className="filters-top-bar">
+            <div className="filters-top-bar-header">
+              <div className="filters-top-title">
+                <span className="filter-icon">🔍</span>
+                <h3>Filter Mutually Compatible Matches</h3>
+              </div>
+              <div className="filter-top-actions">
+                <button type="button" onClick={handleClearFilters} className="btn-clear-filters-top">
+                  Clear All
+                </button>
+                <button type="submit" className="btn-apply-filters-top">
+                  Apply Filters
+                </button>
               </div>
             </div>
 
-            <div className="filter-group">
-              <label>Education</label>
-              <input
-                type="text"
-                placeholder="e.g. B.Tech, MS, MBBS"
-                value={filters.education}
-                onChange={(e) => setFilters({ ...filters, education: e.target.value })}
-              />
-            </div>
+            <div className="filters-horizontal-fields">
+              <div className="filter-field-inline">
+                <label>Caste</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Brahmin, Reddy"
+                  value={filters.caste}
+                  onChange={(e) => setFilters({ ...filters, caste: e.target.value })}
+                />
+              </div>
 
-            <div className="filter-group">
-              <label>Profession</label>
-              <input
-                type="text"
-                placeholder="e.g. Software, Doctor"
-                value={filters.profession}
-                onChange={(e) => setFilters({ ...filters, profession: e.target.value })}
-              />
-            </div>
+              <div className="filter-field-inline">
+                <label>Marital Status</label>
+                <select
+                  value={filters.maritalStatus}
+                  onChange={(e) => setFilters({ ...filters, maritalStatus: e.target.value })}
+                >
+                  <option value="">Any Status</option>
+                  <option value="Unmarried">Unmarried</option>
+                  <option value="Divorced">Divorced</option>
+                  <option value="Widowed">Widowed</option>
+                </select>
+              </div>
 
-            <div className="filter-group">
-              <label>Location / City</label>
-              <input
-                type="text"
-                placeholder="e.g. Hyderabad, USA"
-                value={filters.city}
-                onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-              />
-            </div>
+              <div className="filter-field-inline">
+                <label>Age Range</label>
+                <div className="filter-age-range-inline">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.ageMin}
+                    onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })}
+                  />
+                  <span>-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.ageMax}
+                    onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })}
+                  />
+                </div>
+              </div>
 
-            <button type="submit" className="btn-apply-filters">
-              Apply Filters
-            </button>
+              <div className="filter-field-inline">
+                <label>Education</label>
+                <input
+                  type="text"
+                  placeholder="e.g. B.Tech, MS, MBBS"
+                  value={filters.education}
+                  onChange={(e) => setFilters({ ...filters, education: e.target.value })}
+                />
+              </div>
+
+              <div className="filter-field-inline">
+                <label>Profession</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Software, Doctor"
+                  value={filters.profession}
+                  onChange={(e) => setFilters({ ...filters, profession: e.target.value })}
+                />
+              </div>
+
+              <div className="filter-field-inline">
+                <label>Location / City</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Hyderabad, USA"
+                  value={filters.city}
+                  onChange={(e) => setFilters({ ...filters, city: e.target.value })}
+                />
+              </div>
+            </div>
           </form>
 
-          {/* Cards Grid */}
+          {/* Horizontal Direction Matched Profile Cards */}
           <div className="matches-grid-wrapper">
             {data.results?.length === 0 ? (
               <div className="empty-matches-box">
@@ -212,7 +218,7 @@ export const MatchedViewPage: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="matches-cards-grid">
+                <div className="matches-cards-grid-horizontal">
                   {data.results.map((candidate: any) => (
                     <MatchCard
                       key={candidate.id}

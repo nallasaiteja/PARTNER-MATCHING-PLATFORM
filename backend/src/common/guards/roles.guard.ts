@@ -10,6 +10,7 @@ import {
   SUSPENDED_BLOCKED_PERMISSIONS,
   StaffStatus,
   RoleType,
+  Role,
   PermissionType,
 } from '../constants/roles.constants';
 import { ROLES_KEY } from '../decorators/roles.decorator';
@@ -53,6 +54,15 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException(
         `Access denied: role ${userRole} is not permitted for this action`,
       );
+    }
+
+    // Section 12.1.A: Mandatory Two-Factor Authentication for Admin Accounts
+    if (userRole === Role.SUPER_ADMIN || userRole === Role.ADMIN) {
+      if (user.is2faVerified !== true) {
+        throw new ForbiddenException(
+          'Access denied: Two-factor authentication (2FA) verification is required to access administrative endpoints.',
+        );
+      }
     }
 
     // Check permission requirement

@@ -4,6 +4,7 @@
   "description": "Backend API for Partner Matching Platform",
   "main": "dist/main.js",
   "scripts": {
+    "dev": "npm run start:dev",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main",
     "start:dev": "ts-node-dev --respawn src/main.ts",
@@ -16,7 +17,17 @@
     "test:locations": "ts-node src/tests/location-address.test.ts",
     "test:lifestyle": "ts-node src/tests/lifestyle-profile.test.ts",
     "test:rbac": "ts-node src/tests/rbac.test.ts",
-    "test:members": "ts-node src/tests/section4-members.test.ts"
+    "test:members": "ts-node src/tests/section4-members.test.ts",
+    "test:agent": "ts-node src/tests/section9-agent.test.ts",
+    "test:notifications": "ts-node src/tests/section10-notifications.test.ts",
+    "test:success-stories": "ts-node src/tests/section11-success-stories.test.ts",
+    "test:careers": "ts-node src/tests/section11-careers.test.ts",
+    "test:leave": "ts-node src/tests/section11-leave.test.ts",
+    "test:complaints": "ts-node src/tests/section11-complaints.test.ts",
+    "test:suggestions": "ts-node src/tests/section11-suggestions.test.ts",
+    "test:marketing": "ts-node src/tests/section11-marketing.test.ts",
+    "test:security": "ts-node src/tests/section12-security.test.ts",
+    "db:backup": "ts-node scripts/backup-database.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

@@ -304,8 +304,15 @@ export interface Step5Data {
   emailVerified: boolean;
   idProofUploaded: boolean;
   idProofVerified: boolean;
+  idProofStatus?: 'PENDING_REVIEW' | 'VERIFIED' | 'REJECTED';
+  idProofRejectionReason?: string | null;
+  idProofRejectedAt?: string;
+  idProofRejectedBy?: string;
+  idProofResubmittedAt?: string;
   idProofVerifiedAt?: string;
   idProofVerifiedBy?: string;
+  verificationStatus?: 'DRAFT' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED';
+  submittedForVerificationAt?: string;
   willingToTakePackage?: boolean;
   paymentInterestDate?: string;
   profilePaymentDate?: string;

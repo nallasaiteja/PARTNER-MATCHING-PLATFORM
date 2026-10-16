@@ -20,6 +20,8 @@ export const MemberProfileFormPage: React.FC = () => {
     currentStep,
     completedSteps,
     errors,
+    validationAlert,
+    clearValidationAlert,
     isLoading,
     isDirty,
     saveStatus,
@@ -61,14 +63,27 @@ export const MemberProfileFormPage: React.FC = () => {
       <div className="profile-form-page-container">
         <div className="profile-success-card">
           <div className="success-icon-badge">✓</div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
-            Member Profile Successfully Completed!
+          <span className="success-badge-tag">Verification Queued</span>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', marginBottom: '8px', marginTop: '12px' }}>
+            Application Submitted for Verification!
           </h2>
-          <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '500px', margin: '0 auto 24px auto' }}>
-            All 5 steps of Section 3 have been completed and saved. Profile data is preserved
-            and queued for admin verification and partner matching.
+          <div className="success-meta-box">
+            <div>
+              <strong>Member ID:</strong> {formData.memberId || formData.id || 'Submitted'}
+            </div>
+            <div>
+              <strong>Candidate:</strong> {formData.step1.firstName} {formData.step1.lastName}
+            </div>
+            <div>
+              <strong>Status:</strong> <span className="status-pending-chip">Pending Admin & Branch Review</span>
+            </div>
+          </div>
+          <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '580px', margin: '0 auto 24px auto', lineHeight: '1.6' }}>
+            All 5 steps of your matrimony profile have been verified and saved to the server. Your identity
+            document has been routed to the <strong>Admin Pending Verification</strong> and <strong>Branch ID Proof</strong> departments.
+            You will receive notification once your profile is verified and active for partner matching.
           </p>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               className="btn-nav btn-nav-prev"
               onClick={() => {
@@ -80,9 +95,9 @@ export const MemberProfileFormPage: React.FC = () => {
             </button>
             <button
               className="btn-nav btn-nav-next"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/member/dashboard')}
             >
-              Back to Dashboard
+              Go to Member Dashboard →
             </button>
           </div>
         </div>
@@ -109,8 +124,8 @@ export const MemberProfileFormPage: React.FC = () => {
           <div className={`save-indicator ${saveStatus.status}`}>
             <span className="save-indicator-dot" />
             <span>
-              {saveStatus.status === 'saving' && 'Saving...'}
-              {saveStatus.status === 'saved' && (isDirty ? 'Unsaved changes' : 'Saved')}
+              {saveStatus.status === 'saving' && 'Saving to server...'}
+              {saveStatus.status === 'saved' && (isDirty ? 'Unsaved changes' : 'Saved to server')}
               {saveStatus.status === 'idle' && (isDirty ? 'Draft modified' : 'Up to date')}
               {saveStatus.status === 'error' && (saveStatus.errorMessage || 'Save error')}
             </span>
@@ -134,6 +149,31 @@ export const MemberProfileFormPage: React.FC = () => {
         onStepClick={(step: StepNumber) => goToStep(step)}
         isSaving={saveStatus.status === 'saving'}
       />
+
+      {/* Validation Alert Banner */}
+      {validationAlert && (
+        <div className="validation-alert-banner" role="alert">
+          <div className="validation-alert-content">
+            <span className="validation-alert-icon">⚠️</span>
+            <span className="validation-alert-text">{validationAlert}</span>
+          </div>
+          <button
+            type="button"
+            className="validation-alert-dismiss"
+            onClick={clearValidationAlert}
+            title="Dismiss notice"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Save Error Banner */}
+      {saveStatus.status === 'error' && saveStatus.errorMessage && (
+        <div className="save-error-banner" role="alert">
+          <span>❌ {saveStatus.errorMessage}</span>
+        </div>
+      )}
 
       {/* Active Step Panel */}
       <div className="step-content-area">

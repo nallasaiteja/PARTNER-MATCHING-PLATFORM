@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   fetchAdminMemberList,
+  verifyAdminIdProof,
   blockMember,
   unblockMember,
   approveProfileClosure,
@@ -29,6 +30,7 @@ interface MemberItem {
   packageName: string;
   packageExpiresAt?: string;
   branchName: string;
+  branchId?: string;
   isBlocked: boolean;
   blockedAt?: string;
   blockedReason?: string;
@@ -39,6 +41,17 @@ interface MemberItem {
   notesCount: number;
   pendingUpdateRequests: number;
   createdAt: string;
+  idProofStatus?: string;
+  idProofType?: string;
+  idProofNumber?: string;
+  idProofFileUrl?: string;
+  idProofRejectionReason?: string;
+  idProofVerifiedAt?: string;
+  idProofVerifiedBy?: string;
+  verificationStatus?: string;
+  submittedForVerificationAt?: string;
+  completedSteps?: number[];
+  currentStep?: number;
 }
 
 export const MemberManagementPage: React.FC = () => {
@@ -46,7 +59,7 @@ export const MemberManagementPage: React.FC = () => {
   const isAdminOrSuper = user?.role === Role.SUPER_ADMIN || user?.role === Role.ADMIN;
 
   const [activeTab, setActiveTab] = useState<
-    'ALL' | 'FREE' | 'PAID' | 'BLOCKED' | 'TERMINATED' | 'CONVERTED' | 'UPDATE_REQUESTS'
+    'ALL' | 'PENDING_VERIFICATION' | 'FREE' | 'PAID' | 'BLOCKED' | 'TERMINATED' | 'CONVERTED' | 'UPDATE_REQUESTS'
   >('ALL');
 
   const [members, setMembers] = useState<MemberItem[]>([]);
@@ -55,6 +68,12 @@ export const MemberManagementPage: React.FC = () => {
   const [search, setSearch] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ID Proof Verification Modal
+  const [verifyModalMember, setVerifyModalMember] = useState<MemberItem | null>(null);
+  const [verifyActionType, setVerifyActionType] = useState<'APPROVE' | 'REJECT'>('APPROVE');
+  const [verifyRejectionReason, setVerifyRejectionReason] = useState<string>('');
+  const [verifySubmitting, setVerifySubmitting] = useState<boolean>(false);
 
   // Modals & Panels
   const [blockModalMember, setBlockModalMember] = useState<MemberItem | null>(null);
@@ -224,6 +243,30 @@ export const MemberManagementPage: React.FC = () => {
     }
   };
 
+  const handleVerifyIdProofSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyModalMember) return;
+    if (verifyActionType === 'REJECT' && (!verifyRejectionReason || verifyRejectionReason.trim().length < 5)) {
+      alert('A rejection reason of at least 5 characters is required.');
+      return;
+    }
+    try {
+      setVerifySubmitting(true);
+      await verifyAdminIdProof(verifyModalMember.id, {
+        verified: verifyActionType === 'APPROVE',
+        rejectionReason: verifyActionType === 'REJECT' ? verifyRejectionReason.trim() : undefined,
+      });
+      alert(verifyActionType === 'APPROVE' ? 'ID Proof Approved and Verified!' : 'ID Proof Rejected with reason.');
+      setVerifyModalMember(null);
+      setVerifyRejectionReason('');
+      await loadMembers();
+    } catch (err: any) {
+      alert(err.message || 'Verification decision failed');
+    } finally {
+      setVerifySubmitting(false);
+    }
+  };
+
   // Separate staff into active and inactive
   const activeStaff = staffList.filter((s) => s.status === 'ACTIVE');
   const inactiveStaff = staffList.filter((s) => s.status !== 'ACTIVE');
@@ -254,6 +297,13 @@ export const MemberManagementPage: React.FC = () => {
           onClick={() => { setActiveTab('ALL'); setPage(1); }}
         >
           All Members {activeTab === 'ALL' && `(${total})`}
+        </button>
+        <button
+          className={`member-tab-btn ${activeTab === 'PENDING_VERIFICATION' ? 'active' : ''}`}
+          onClick={() => { setActiveTab('PENDING_VERIFICATION'); setPage(1); }}
+          style={{ fontWeight: 700 }}
+        >
+          🛡️ Pending Verification {activeTab === 'PENDING_VERIFICATION' && `(${total})`}
         </button>
         <button
           className={`member-tab-btn ${activeTab === 'FREE' ? 'active' : ''}`}
@@ -361,16 +411,29 @@ export const MemberManagementPage: React.FC = () => {
             <div style={{ overflowX: 'auto' }}>
               <table className="admin-table">
                 <thead>
-                  <tr>
-                    <th>Member ID</th>
-                    <th>Name</th>
-                    <th>Gender & Age</th>
-                    <th>Tier / Package</th>
-                    <th>Branch</th>
-                    <th>Status</th>
-                    <th>CRM Notes</th>
-                    <th>Actions</th>
-                  </tr>
+                  {activeTab === 'PENDING_VERIFICATION' ? (
+                    <tr>
+                      <th>Member ID</th>
+                      <th>Name & Mobile</th>
+                      <th>Branch</th>
+                      <th>Submitted Date</th>
+                      <th>Profile Progress</th>
+                      <th>ID Proof Status</th>
+                      <th>CRM Notes</th>
+                      <th>Verification Actions</th>
+                    </tr>
+                  ) : (
+                    <tr>
+                      <th>Member ID</th>
+                      <th>Name</th>
+                      <th>Gender & Age</th>
+                      <th>Tier / Package</th>
+                      <th>Branch</th>
+                      <th>Status</th>
+                      <th>CRM Notes</th>
+                      <th>Actions</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody>
                   {members.map((m) => (
@@ -378,45 +441,97 @@ export const MemberManagementPage: React.FC = () => {
                       <td style={{ fontWeight: 700, color: '#1e293b' }}>{m.memberId}</td>
                       <td>
                         <strong>{m.firstName} {m.lastName}</strong>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{m.mobile}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{m.mobile || 'Confidential'}</div>
                       </td>
-                      <td>
-                        {m.gender} • {new Date().getFullYear() - new Date(m.dateOfBirth).getFullYear()} yrs
-                      </td>
-                      <td>
-                        <span className={`tag-badge ${m.packageType === 'PAID' ? 'tag-success' : 'tag-info'}`}>
-                          {m.packageName}
-                        </span>
-                      </td>
-                      <td>{m.branchName}</td>
-                      <td>
-                        {m.isBlocked ? (
-                          <div>
-                            <span className="tag-badge tag-danger">BLOCKED</span>
-                            <div style={{ fontSize: '0.7rem', color: '#b91c1c', marginTop: 2 }}>
-                              {m.blockedReason}
-                            </div>
-                            {m.blockedByStaff && (
-                              <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                                by {m.blockedByStaff}
+                      {activeTab === 'PENDING_VERIFICATION' ? (
+                        <>
+                          <td>{m.branchName}</td>
+                          <td>
+                            {m.submittedForVerificationAt
+                              ? new Date(m.submittedForVerificationAt).toLocaleDateString()
+                              : new Date(m.createdAt).toLocaleDateString()}
+                          </td>
+                          <td>
+                            <span className="tag-badge tag-info">
+                              {m.completedSteps && m.completedSteps.length >= 5
+                                ? '5/5 Steps Done'
+                                : `${m.completedSteps?.length || m.currentStep || 1}/5 Steps`}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`tag-badge ${
+                                m.idProofStatus === 'VERIFIED'
+                                  ? 'tag-success'
+                                  : m.idProofStatus === 'REJECTED'
+                                  ? 'tag-danger'
+                                  : 'tag-warning'
+                              }`}
+                            >
+                              {m.idProofStatus || (m.idProofFileUrl ? 'PENDING_REVIEW' : 'NOT_UPLOADED')}
+                            </span>
+                            {m.idProofRejectionReason && (
+                              <div style={{ fontSize: '0.7rem', color: '#b91c1c', marginTop: 2 }}>
+                                Reason: {m.idProofRejectionReason}
                               </div>
                             )}
-                          </div>
-                        ) : m.closureRequested ? (
-                          <div>
-                            <span className="tag-badge tag-warning">Closure Requested</span>
-                            <div style={{ fontSize: '0.7rem', color: '#854d0e' }}>{m.closureReason}</div>
-                          </div>
-                        ) : (
-                          <span className="tag-badge tag-success">ACTIVE</span>
-                        )}
-                      </td>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td>
+                            {m.gender} • {new Date().getFullYear() - new Date(m.dateOfBirth).getFullYear()} yrs
+                          </td>
+                          <td>
+                            <span className={`tag-badge ${m.packageType === 'PAID' ? 'tag-success' : 'tag-info'}`}>
+                              {m.packageName}
+                            </span>
+                          </td>
+                          <td>{m.branchName}</td>
+                          <td>
+                            {m.isBlocked ? (
+                              <div>
+                                <span className="tag-badge tag-danger">BLOCKED</span>
+                                <div style={{ fontSize: '0.7rem', color: '#b91c1c', marginTop: 2 }}>
+                                  {m.blockedReason}
+                                </div>
+                                {m.blockedByStaff && (
+                                  <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                                    by {m.blockedByStaff}
+                                  </div>
+                                )}
+                              </div>
+                            ) : m.closureRequested ? (
+                              <div>
+                                <span className="tag-badge tag-warning">Closure Requested</span>
+                                <div style={{ fontSize: '0.7rem', color: '#854d0e' }}>{m.closureReason}</div>
+                              </div>
+                            ) : (
+                              <span className="tag-badge tag-success">ACTIVE</span>
+                            )}
+                          </td>
+                        </>
+                      )}
                       <td>
                         <button onClick={() => void handleOpenNotes(m)} className="action-btn">
                           💬 Notes ({m.notesCount})
                         </button>
                       </td>
                       <td>
+                        {/* ID Proof Review Action */}
+                        <button
+                          onClick={() => {
+                            setVerifyModalMember(m);
+                            setVerifyActionType('APPROVE');
+                            setVerifyRejectionReason(m.idProofRejectionReason || '');
+                          }}
+                          className="action-btn"
+                          style={{ color: '#0284c7', borderColor: '#7dd3fc', fontWeight: 600 }}
+                          title="Review submitted ID proof document and approve or reject"
+                        >
+                          🔍 Review ID
+                        </button>
+
                         {/* Block / Unblock Actions */}
                         {!m.isBlocked ? (
                           <button
@@ -667,6 +782,162 @@ export const MemberManagementPage: React.FC = () => {
             </div>
             <div className="modal-footer">
               <button onClick={() => setNotesMember(null)} className="btn-secondary">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ID PROOF REVIEW & VERIFICATION MODAL */}
+      {verifyModalMember && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: 580 }}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ margin: 0 }}>🪪 ID Proof Verification Review</h3>
+                <span style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                  Member: {verifyModalMember.firstName} {verifyModalMember.lastName} ({verifyModalMember.memberId})
+                </span>
+              </div>
+              <button onClick={() => setVerifyModalMember(null)} className="modal-close-btn">✕</button>
+            </div>
+
+            <div className="modal-body">
+              {/* Member & ID Details Summary Card */}
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.88rem' }}>
+                  <div><strong style={{ color: '#475569' }}>Member ID:</strong> {verifyModalMember.memberId}</div>
+                  <div><strong style={{ color: '#475569' }}>Branch:</strong> {verifyModalMember.branchName}</div>
+                  <div><strong style={{ color: '#475569' }}>Mobile:</strong> {verifyModalMember.mobile || 'Confidential'}</div>
+                  <div><strong style={{ color: '#475569' }}>Submitted:</strong> {verifyModalMember.submittedForVerificationAt ? new Date(verifyModalMember.submittedForVerificationAt).toLocaleDateString() : 'N/A'}</div>
+                  <div><strong style={{ color: '#475569' }}>Document Type:</strong> {verifyModalMember.idProofType || 'Government ID'}</div>
+                  <div><strong style={{ color: '#475569' }}>Document Number:</strong> {verifyModalMember.idProofNumber || 'N/A'}</div>
+                </div>
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e2e8f0', fontSize: '0.85rem' }}>
+                  <strong style={{ color: '#475569' }}>Verification Status:</strong>{' '}
+                  <span className={`tag-badge ${
+                    verifyModalMember.idProofStatus === 'VERIFIED'
+                      ? 'tag-success'
+                      : verifyModalMember.idProofStatus === 'REJECTED'
+                      ? 'tag-danger'
+                      : 'tag-warning'
+                  }`}>
+                    {verifyModalMember.idProofStatus || (verifyModalMember.idProofFileUrl ? 'PENDING_REVIEW' : 'NOT_UPLOADED')}
+                  </span>
+                  {verifyModalMember.idProofRejectionReason && (
+                    <div style={{ marginTop: 4, color: '#b91c1c' }}>
+                      Prior Rejection Reason: {verifyModalMember.idProofRejectionReason}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Document Link */}
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem', marginBottom: 6 }}>
+                  Submitted Document File:
+                </label>
+                {verifyModalMember.idProofFileUrl ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f1f5f9', padding: '10px 14px', borderRadius: 6, border: '1px solid #cbd5e1' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                      <span style={{ fontSize: '1.4rem' }}>📄</span>
+                      <span style={{ fontSize: '0.84rem', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {verifyModalMember.idProofFileUrl}
+                      </span>
+                    </div>
+                    <a
+                      href={verifyModalMember.idProofFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="action-btn"
+                      style={{ background: '#0284c7', color: '#fff', borderColor: '#0284c7', padding: '4px 12px', textDecoration: 'none', whiteSpace: 'nowrap' }}
+                    >
+                      Open Document ↗
+                    </a>
+                  </div>
+                ) : (
+                  <div style={{ color: '#ef4444', fontStyle: 'italic', fontSize: '0.85rem' }}>
+                    No ID proof document file uploaded by member.
+                  </div>
+                )}
+              </div>
+
+              {/* Review Decision Form */}
+              <form onSubmit={handleVerifyIdProofSubmit}>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem', marginBottom: 8 }}>
+                    Select Action:
+                  </label>
+                  <div style={{ display: 'flex', gap: 16 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, color: '#059669' }}>
+                      <input
+                        type="radio"
+                        name="verifyActionType"
+                        checked={verifyActionType === 'APPROVE'}
+                        onChange={() => setVerifyActionType('APPROVE')}
+                      />
+                      ✅ Approve ID Proof (Mark Verified)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, color: '#dc2626' }}>
+                      <input
+                        type="radio"
+                        name="verifyActionType"
+                        checked={verifyActionType === 'REJECT'}
+                        onChange={() => setVerifyActionType('REJECT')}
+                      />
+                      ❌ Reject ID Proof
+                    </label>
+                  </div>
+                </div>
+
+                {verifyActionType === 'REJECT' && (
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem', color: '#b91c1c', marginBottom: 6 }}>
+                      Mandatory Rejection Reason (at least 5 characters):
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      minLength={5}
+                      value={verifyRejectionReason}
+                      onChange={(e) => setVerifyRejectionReason(e.target.value)}
+                      placeholder="e.g. Document image is illegible or name does not match profile..."
+                      style={{ width: '100%', padding: '8px 12px', border: '1px solid #f87171', borderRadius: 6, fontSize: '0.88rem', boxSizing: 'border-box' }}
+                    />
+                    <small style={{ color: '#64748b', fontSize: '0.78rem' }}>
+                      This feedback is communicated directly to the member on their dashboard to prompt resubmission.
+                    </small>
+                  </div>
+                )}
+
+                <div className="modal-footer" style={{ padding: '16px 0 0 0', marginTop: 16, borderTop: '1px solid #e2e8f0' }}>
+                  <button
+                    type="button"
+                    onClick={() => setVerifyModalMember(null)}
+                    className="btn-secondary"
+                    disabled={verifySubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{
+                      background: verifyActionType === 'APPROVE' ? '#059669' : '#dc2626',
+                      borderColor: verifyActionType === 'APPROVE' ? '#059669' : '#dc2626',
+                    }}
+                    disabled={
+                      verifySubmitting ||
+                      (verifyActionType === 'REJECT' && (!verifyRejectionReason || verifyRejectionReason.trim().length < 5))
+                    }
+                  >
+                    {verifySubmitting
+                      ? 'Saving...'
+                      : verifyActionType === 'APPROVE'
+                      ? 'Confirm & Verify'
+                      : 'Confirm Rejection'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

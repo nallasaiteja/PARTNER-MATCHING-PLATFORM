@@ -66,7 +66,10 @@ export class JwtAuthGuard implements CanActivate {
       );
     }
 
-    request.user = user;
+    request.user = {
+      ...user,
+      is2faVerified: Boolean(payload?.is2faVerified),
+    };
     return true;
   }
 

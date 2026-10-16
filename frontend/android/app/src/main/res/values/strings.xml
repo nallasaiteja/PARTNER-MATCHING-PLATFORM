@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Partner Matching</string>
+    <string name="title_activity_main">Partner Matching</string>
+    <string name="package_name">com.partnermatch.app</string>
+    <string name="custom_url_scheme">com.partnermatch.app</string>
+</resources>

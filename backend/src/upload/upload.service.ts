@@ -104,8 +104,18 @@ export class UploadService {
         profileId,
         actor.id,
       );
-      if (profile.idProofFileUrl && !profile.idProofFileUrl.startsWith('blob:')) {
-        throw new BadRequestException('An ID proof has already been uploaded');
+      const step5 = (profile.profileData as Record<string, any>)?.step5 || {};
+      const isRejected =
+        step5.idProofStatus === 'REJECTED' ||
+        (!step5.idProofVerified && Boolean(step5.idProofRejectionReason));
+
+      if (
+        profile.idProofFileUrl &&
+        !profile.idProofFileUrl.startsWith('blob:') &&
+        !isRejected &&
+        step5.idProofVerified
+      ) {
+        throw new BadRequestException('An ID proof has already been uploaded and verified');
       }
 
       const url = `/uploads/id-proofs/${file.filename}`;
@@ -120,12 +130,63 @@ export class UploadService {
               ...(profileData.step5 || {}),
               idProofUploaded: true,
               idProofVerified: false,
+              idProofStatus: 'PENDING_REVIEW',
+              idProofRejectionReason: null,
+              idProofResubmittedAt: new Date().toISOString(),
               idProofVerifiedAt: null,
               idProofVerifiedBy: null,
             },
           } as any,
         },
       });
+
+      // Task 2: Dispatch alert to assigned staff or Branch Manager
+      const memberName = `${profile.firstName} ${profile.lastName}`;
+      let staffToNotify: string[] = [];
+      if (profile.assignedToId) {
+        staffToNotify.push(profile.assignedToId);
+      } else if (profile.ownerOrgId) {
+        const managers = await this.prisma.user.findMany({
+          where: { organizationId: profile.ownerOrgId, role: 'BRANCH_MANAGER', status: 'ACTIVE' },
+          select: { id: true },
+        });
+        staffToNotify = managers.map((m) => m.id);
+      }
+      if (staffToNotify.length === 0) {
+        const admins = await this.prisma.user.findMany({
+          where: { role: { in: ['SUPER_ADMIN', 'ADMIN'] }, status: 'ACTIVE' },
+          select: { id: true },
+          take: 2,
+        });
+        staffToNotify = admins.map((a) => a.id);
+      }
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      for (const recipientId of staffToNotify) {
+        const idempotencyKey = `ID_RESUBMIT_${profileId}_${recipientId}_${todayStr}`;
+        await this.prisma.notificationLog.upsert({
+          where: { idempotencyKey },
+          create: {
+            type: 'ID_PROOF_RESUBMITTED',
+            channel: 'APP_PUSH',
+            recipientUserId: recipientId,
+            recipientMemberProfileId: profileId,
+            recipientContact: recipientId,
+            recipientName: 'Staff Reviewer',
+            title: `ID Proof Resubmitted: ${profile.memberId || memberName}`,
+            content: `Member ${memberName} (${profile.memberId || profileId}) has uploaded a new ID proof document for verification.`,
+            status: 'SENT',
+            provider: 'SYSTEM_INTERNAL',
+            idempotencyKey,
+            metadata: { profileId, memberName, action: 'ID_PROOF_RESUBMITTED' },
+            sentAt: new Date(),
+          },
+          update: {
+            sentAt: new Date(),
+          },
+        });
+      }
+
       return { url, filename: file.filename };
     } catch (error) {
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
