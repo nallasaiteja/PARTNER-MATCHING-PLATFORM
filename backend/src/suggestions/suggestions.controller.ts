@@ -21,7 +21,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/constants/roles.constants';
 
-@Controller('api/v1/suggestions')
+@Controller('suggestions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SuggestionsController {
   constructor(private readonly suggestionsService: SuggestionsService) {}

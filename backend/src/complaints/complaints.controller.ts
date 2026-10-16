@@ -20,7 +20,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/constants/roles.constants';
 
-@Controller('api/v1/complaints')
+@Controller('complaints')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.ADMIN) // Strictly restricted to Admin/Super Admin
 export class ComplaintsController {
